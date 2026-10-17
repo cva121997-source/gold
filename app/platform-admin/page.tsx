@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Building2, CircleAlert, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Building2, CircleAlert, Plus, RefreshCw, ShieldCheck, CreditCard } from "lucide-react";
 
 type Subscription = {
   status: string;
@@ -94,7 +94,7 @@ export default function PlatformAdminPage() {
     <Link className="link-text small" href="/dashboard"><ArrowLeft size={13} style={{ display: "inline", verticalAlign: "middle" }} /> Back to shop workspace</Link>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 14, flexWrap: "wrap", marginTop: 20, marginBottom: 24 }}>
       <div><div className="eyebrow"><ShieldCheck size={14} /> Platform administration</div><h1 style={{ marginTop: 12 }}>Gold SaaS control center</h1><p className="lead">Manage registered jewellery tenants, trials, activation and suspension. Access is verified against a server-side platform-admin record.</p></div>
-      <div className="action-row" style={{ marginTop: 0 }}><button className="btn btn-secondary" type="button" onClick={() => void load()}><RefreshCw size={14} /> Refresh</button>{canManage && <button className="btn btn-primary" type="button" onClick={() => setNewShop(v => !v)}><Plus size={15} /> Register shop</button>}</div>
+      <div className="action-row" style={{ marginTop: 0 }}><Link className="btn btn-secondary" href="/platform-admin/plans"><CreditCard size={14} /> Manage plans</Link><button className="btn btn-secondary" type="button" onClick={() => void load()}><RefreshCw size={14} /> Refresh</button>{canManage && <button className="btn btn-primary" type="button" onClick={() => setNewShop(v => !v)}><Plus size={15} /> Register shop</button>}</div>
     </div>
     {error && <div role="alert" className="notice" style={{ marginBottom: 14 }}><CircleAlert size={16} /><span>{error}</span></div>}
     {notice && <div className="notice" style={{ marginBottom: 14, color: "#1f5c3e", background: "#edf7ef", borderColor: "#cfe4d4" }}>{notice}</div>}
