@@ -11,6 +11,7 @@ type PublicRate = {
   price_per_gram: number | string; source_label: string | null; rate_status: string;
   effective_at: string; is_stale: boolean;
 };
+const locationLabel = (rate: PublicRate) => [rate.branch_name, rate.locality, rate.city, rate.district, rate.state].filter(Boolean).join(" · ") || "Shop-level default";
 const todayInIndia = () => new Intl.DateTimeFormat("en-CA", {
   timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
 }).format(new Date());
@@ -23,6 +24,7 @@ export default function GoldCalculator() {
   const [rate, setRate] = useState("13535");
   const [shopSlug, setShopSlug] = useState("");
   const [rateDate, setRateDate] = useState(todayInIndia);
+  const [rateLocation, setRateLocation] = useState("");
   const [publishedRates, setPublishedRates] = useState<PublicRate[]>([]);
   const [loadedShop, setLoadedShop] = useState<PublicRate | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
@@ -44,11 +46,15 @@ export default function GoldCalculator() {
     publishedRates.forEach((item) => unique.set(item.metal_code, item.metal_name));
     return Array.from(unique.entries()).map(([code, name]) => ({ code, name }));
   }, [publishedRates]);
+  const availableLocations = useMemo(() => Array.from(new Set(publishedRates.map(locationLabel))), [publishedRates]);
   const availablePurities = useMemo(() => {
     if (!publishedRates.length) return ["24K · 999", "22K · 916", "18K · 750"];
-    return Array.from(new Set(publishedRates.filter((item) => item.metal_code === metal).map((item) => item.purity_label)));
-  }, [publishedRates, metal]);
-  const selectedPublishedRate = publishedRates.find((item) => item.metal_code === metal && item.purity_label === purity) ?? null;
+    return Array.from(new Set(publishedRates.filter((item) => item.metal_code === metal && (!rateLocation || locationLabel(item) === rateLocation)).map((item) => item.purity_label)));
+  }, [publishedRates, metal, rateLocation]);
+  const selectedPublishedRate = publishedRates.find((item) => item.metal_code === metal && item.purity_label === purity && (!rateLocation || locationLabel(item) === rateLocation))
+    ?? publishedRates.find((item) => item.metal_code === metal && item.purity_label === purity)
+    ?? null;
+  const usingPublishedRate = !!selectedPublishedRate && String(selectedPublishedRate.price_per_gram) === String(rate);
 
   async function loadPublishedRates(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,6 +71,10 @@ export default function GoldCalculator() {
         setRateError("Published rates could not be loaded. Check the shop slug, public rate settings and the historical-rate migration.");
         setPublishedRates([]);
         setLoadedShop(null);
+        setRateLocation("");
+        setMetal("gold");
+        setPurity("22K · 916");
+        setRate("13535");
         return;
       }
       const rows = (data ?? []) as PublicRate[];
@@ -72,12 +82,17 @@ export default function GoldCalculator() {
         setRateError("No public rate has been published for this shop on or before the selected date. The calculator will remain on its clearly labelled sample rate.");
         setPublishedRates([]);
         setLoadedShop(null);
+        setRateLocation("");
+        setMetal("gold");
+        setPurity("22K · 916");
+        setRate("13535");
         return;
       }
       setPublishedRates(rows);
       const preferred = rows.find((item) => item.metal_code === "gold" && item.purity_code === "22K") ?? rows.find((item) => item.metal_code === "gold") ?? rows[0];
       setMetal(preferred.metal_code);
       setPurity(preferred.purity_label);
+      setRateLocation(locationLabel(preferred));
       setRate(String(preferred.price_per_gram));
       setLoadedShop(preferred);
       const location = [preferred.locality, preferred.city, preferred.district, preferred.state].filter(Boolean).join(", ");
@@ -91,8 +106,10 @@ export default function GoldCalculator() {
 
   function chooseMetal(next: string) {
     setMetal(next);
-    const nextRate = publishedRates.find((item) => item.metal_code === next);
+    const nextRate = publishedRates.find((item) => item.metal_code === next && (!rateLocation || locationLabel(item) === rateLocation))
+      ?? publishedRates.find((item) => item.metal_code === next);
     if (nextRate) {
+      setRateLocation(locationLabel(nextRate));
       setPurity(nextRate.purity_label);
       setRate(String(nextRate.price_per_gram));
       setLoadedShop(nextRate);
@@ -105,10 +122,25 @@ export default function GoldCalculator() {
     }
   }
 
+  function chooseLocation(next: string) {
+    setRateLocation(next);
+    const selected = publishedRates.find((item) => locationLabel(item) === next && item.metal_code === metal && item.purity_label === purity)
+      ?? publishedRates.find((item) => locationLabel(item) === next && item.metal_code === metal)
+      ?? publishedRates.find((item) => locationLabel(item) === next);
+    if (selected) {
+      setMetal(selected.metal_code);
+      setPurity(selected.purity_label);
+      setRate(String(selected.price_per_gram));
+      setLoadedShop(selected);
+    }
+  }
+
   function choosePurity(next: string) {
     setPurity(next);
-    const selected = publishedRates.find((item) => item.metal_code === metal && item.purity_label === next);
+    const selected = publishedRates.find((item) => item.metal_code === metal && item.purity_label === next && (!rateLocation || locationLabel(item) === rateLocation))
+      ?? publishedRates.find((item) => item.metal_code === metal && item.purity_label === next);
     if (selected) {
+      setRateLocation(locationLabel(selected));
       setRate(String(selected.price_per_gram));
       setLoadedShop(selected);
     } else if (!publishedRates.length) {
@@ -125,7 +157,7 @@ export default function GoldCalculator() {
   function reset() {
     setPurity("22K · 916"); setMetal("gold"); setRate("13535"); setWeight("10"); setMakingMode("percent"); setMakingInput("12");
     setWastagePercent("0"); setOtherCharges("0"); setDiscount("0"); setGstEnabled(true); setGstPercent("3"); setBudget("156140");
-    setShopSlug(""); setRateDate(todayInIndia()); setPublishedRates([]); setLoadedShop(null); setRateError(""); setRateNotice("");
+    setShopSlug(""); setRateDate(todayInIndia()); setRateLocation(""); setPublishedRates([]); setLoadedShop(null); setRateError(""); setRateNotice("");
   }
 
   return <div style={{ display: "grid", gap: 18 }}>
@@ -153,9 +185,9 @@ export default function GoldCalculator() {
         <div><h2>Item details</h2><p className="small muted" style={{ marginBottom: 0 }}>All amounts are estimates in Indian rupees.</p></div>
         <button className="btn btn-secondary" type="button" onClick={reset}><RotateCcw size={14} /> Reset</button>
       </div>
-      <div className="notice" style={{ marginBottom: 20 }}><Info size={16} style={{ flexShrink: 0, marginTop: 1 }} /><span>Regression example, not a current market quote. Confirm the local rate and applicable tax treatment before using these figures for a sale.</span></div>
+      <div className="notice" style={{ marginBottom: 20 }}><Info size={16} style={{ flexShrink: 0, marginTop: 1 }} /><span>{usingPublishedRate ? "Using the shop-published rate selected above. Verify the source and freshness before relying on the estimate." : publishedRates.length ? "The rate per gram has been manually overridden; the displayed published source is not the rate currently used." : "Regression example, not a current market quote. Confirm the local rate and applicable tax treatment before using these figures for a sale."}</span></div>
       <div className="form-grid">
-        <div className="field"><label htmlFor="metal">Metal</label><select id="metal" value={metal} onChange={(e) => chooseMetal(e.target.value)}>{availableMetals.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></div><div className="field"><label htmlFor="purity">Purity</label><select id="purity" value={purity} onChange={(e) => choosePurity(e.target.value)}>{availablePurities.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
+        <div className="field"><label htmlFor="metal">Metal</label><select id="metal" value={metal} onChange={(e) => chooseMetal(e.target.value)}>{availableMetals.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}</select></div><div className="field"><label htmlFor="location">Location / branch</label><select id="location" value={rateLocation} onChange={(e) => chooseLocation(e.target.value)} disabled={!publishedRates.length}>{availableLocations.length ? availableLocations.map((item) => <option key={item} value={item}>{item}</option>) : <option value="">Load shop rates first</option>}</select></div><div className="field"><label htmlFor="purity">Purity</label><select id="purity" value={purity} onChange={(e) => choosePurity(e.target.value)}>{availablePurities.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
         <div className="field"><label htmlFor="rate">Rate per gram (₹)</label><input id="rate" type="number" min="0" step="0.01" value={rate} onChange={(e) => setRate(e.target.value)} /></div>
         <div className="field"><label htmlFor="weight">Net gold weight (grams)</label><input id="weight" type="number" min="0" step="0.001" value={weight} onChange={(e) => setWeight(e.target.value)} /></div>
         <div className="field"><label htmlFor="makingMode">Making charge method</label><select id="makingMode" value={makingMode} onChange={(e) => setMakingMode(e.target.value as MakingMode)}><option value="percent">Percentage of gold value</option><option value="fixed">Fixed amount per item</option><option value="perGram">Amount per gram</option></select></div>
