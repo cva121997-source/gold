@@ -113,6 +113,9 @@ export default function SchemesPage() {
     if (benefitAmount.trim() && (!Number.isFinite(amountNumber) || Number(amountNumber) <= 0)) {
       throw new Error("Benefit amount must be positive when entered.");
     }
+    if (fixed && ["jewellery_purchase_credit","making_charge_discount","custom"].includes(benefitType) && (!Number.isFinite(amountNumber) || Number(amountNumber) <= 0)) {
+      throw new Error("This benefit type requires a positive configured benefit amount before you save the draft.");
+    }
     return {
       scheme_type: schemeType, metal: "gold", purity_code: purityCode,
       payment_frequency: fixed ? "monthly" : "flexible",
@@ -251,7 +254,7 @@ export default function SchemesPage() {
             <div className="field"><label htmlFor="monthlyAmount">Monthly instalment (₹)</label><input id="monthlyAmount" type="number" min="1" step="0.01" value={monthlyAmount} onChange={(e) => setMonthlyAmount(e.target.value)} required /></div>
             <div className="field" style={{ gridColumn: "1 / -1" }}><label htmlFor="benefitType">Draft maturity benefit</label><select id="benefitType" value={benefitType} onChange={(e) => setBenefitType(e.target.value)}><option value="one_instalment_equivalent">Equivalent to one or more monthly instalments</option><option value="jewellery_purchase_credit">Fixed jewellery purchase credit</option><option value="gold_weight_bonus">Gold-weight bonus</option><option value="making_charge_discount">Making-charge discount</option><option value="custom">Custom benefit</option><option value="none">No additional benefit</option></select></div>
             {benefitType === "one_instalment_equivalent" && <div className="field"><label htmlFor="benefitMultiplier">Benefit amount (monthly instalment equivalents)</label><input id="benefitMultiplier" type="number" min="0.01" max="24" step="0.01" value={benefitMultiplier} onChange={(e) => setBenefitMultiplier(e.target.value)} required /></div>}
-            {["jewellery_purchase_credit","making_charge_discount","custom"].includes(benefitType) && <div className="field"><label htmlFor="benefitAmount">Configured benefit amount (₹, optional)</label><input id="benefitAmount" type="number" min="0.01" step="0.01" value={benefitAmount} onChange={(e) => setBenefitAmount(e.target.value)} placeholder="Leave blank to define under the published terms" /></div>}
+            {["jewellery_purchase_credit","making_charge_discount","custom"].includes(benefitType) && <div className="field"><label htmlFor="benefitAmount">Configured benefit amount (₹)</label><input id="benefitAmount" type="number" min="0.01" step="0.01" value={benefitAmount} onChange={(e) => setBenefitAmount(e.target.value)} placeholder="Leave blank to define under the published terms" /></div>}
             {benefitType === "gold_weight_bonus" && <div className="field"><label htmlFor="benefitWeight">Gold-weight benefit (grams)</label><input id="benefitWeight" type="number" min="0.001" step="0.001" value={benefitWeight} onChange={(e) => setBenefitWeight(e.target.value)} required /></div>}
                       <div className="field"><label htmlFor="weightInPeriod">Weight-in / benefit waiting period (months)</label><input id="weightInPeriod" type="number" min="0" max="24" step="1" value={weightInPeriodMonths} onChange={(e) => setWeightInPeriodMonths(e.target.value)} required /></div>
             <div className="field"><label htmlFor="paymentDueDay">Monthly due day (1–28)</label><input id="paymentDueDay" type="number" min="1" max="28" step="1" value={paymentDueDay} onChange={(e) => setPaymentDueDay(e.target.value)} required /></div>
