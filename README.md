@@ -1,59 +1,49 @@
 # Gold — Jewellery Shop SaaS
 
-Gold is a multi-tenant jewellery-shop management SaaS for India, starting with Tamil Nadu. The target architecture uses one Supabase project for many independent shops, database-enforced tenant isolation, configurable local gold rates, customer savings schemes and operational tools.
+Gold is a multi-tenant jewellery shop management workspace for India, initially focused on Tamil Nadu. One Supabase project serves independent shops with database-enforced tenant isolation and branch-aware access.
 
-## Current repository foundation
+## Current functional areas
 
-This initial commit establishes the application foundation and the first usable workflows. It is not a claim that every module in the full product brief is implemented yet.
+- **Platform:** tenant onboarding and status controls, staff invitation workflows, platform-level administrative audit trail.
+- **Rates & calculator:** manual effective-dated locality/branch rates, opted-in public rate board/history lookup, 24K/22K/18K calculator, configurable making modes, wastage, other charges, discounts, GST estimate and budget-to-weight.
+- **CRM:** customer directory, customer portal, append-only customer notes/interactions, follow-up history and audited consent grant/withdrawal history.
+- **Schemes:** draft/version/publish workflow, customer enrolment and terms acceptance, fixed-monthly instalment generation, manual collections with payment/rate snapshots, benefit evaluation and redemption review.
+- **Payments:** server-side Razorpay order creation and HMAC-verified capture webhook, receipt/ledger settlement flow, and a refund request/review/approved manual payout workflow for non-gateway payments.
+- **Shop operations:** POS invoice draft/issue, tax profiles, inventory/HUID fields and stock movements, old-gold valuation, orders/repairs, baseline reports and CSV exports.
+- **Operations:** subscription/entitlements view, notification queue, integration credential readiness page, tenant audit search/export, and CI checks.
 
-- Next.js App Router, TypeScript and Tailwind CSS
-- Supabase SSR client setup and environment template
-- Multi-tenant schema, memberships, branch support, rate history and scheme foundations
-- RLS policies for tenant-scoped records and an audited tenant-onboarding RPC
-- Local manual rate management and historical rate snapshots
-- Customer directory and draft savings-scheme administration foundations
-- Configurable gold rate preview and calculator with transparent charge breakdown
-- Mobile-friendly navigation and dashboard shell
-- Development/test rate values clearly identified as examples
+## Important: not yet a fully production-ready platform
 
-## Requirements
+The repository intentionally does not pretend that missing integrations work. The following still require implementation, credentials or verified end-to-end testing:
 
-- Node.js 20.9+
-- A Supabase project (the Gold project ref is configured separately in deployment secrets)
-- GitHub repository: https://github.com/cva121997-source/gold
-- Primary branch: `main`
+- No live daily gold-rate provider or scheduled refresh worker is configured; displayed sample values are examples only until a shop publishes an approved rate.
+- Razorpay must be configured in test mode and checkout, replay/duplicate webhook handling and provider settlement tested. Gateway refunds, disputes and comprehensive reconciliation are still incomplete.
+- Subscription checkout/renewals, full platform analytics/usage limits, end-to-end feature enforcement and all tenant lifecycle operations are not finished.
+- SMS, WhatsApp and email sending adapters, approved templates, opt-out checks, worker scheduling and provider delivery callbacks are not connected.
+- POS returns/credit notes, detailed purchasing/supplier lifecycle, advanced inventory controls, complete exports/statements and monitoring/backups need further work.
+- Automated integration/E2E tests with multiple unrelated tenant identities and branch/role combinations are still required.
+
+See [the implementation status checklist](docs/IMPLEMENTATION_STATUS.md) and [Razorpay setup guide](docs/PAYMENTS_RAZORPAY.md) for the precise feature state and setup constraints.
+
+## Stack
+
+- Next.js App Router, React, TypeScript and Tailwind CSS
+- Supabase PostgreSQL, Auth, RLS and trusted database functions
+- GitHub Actions validation and Vercel-compatible build
 
 ## Local development
 
-1. Install dependencies: `npm install`
-2. Copy `.env.example` to `.env.local` and set the Supabase URL and publishable/anon key.
-3. Apply SQL migrations in `supabase/migrations` using the Supabase CLI or SQL editor.
-4. Start the app: `npm run dev`
-5. Verify with `npm run lint`, `npm run typecheck` and `npm run build`.
+1. Use Node.js 22 (matches CI).
+2. Install dependencies with `npm install`.
+3. Copy `.env.example` to `.env.local`; set the Supabase URL and browser-safe publishable/anon key.
+4. Keep `SUPABASE_SERVICE_ROLE_KEY` and all provider secrets server-only. Never prefix them with `NEXT_PUBLIC_` or commit their values.
+5. Run `npm run dev`.
+6. Validate with `npm run typecheck`, `npm test`, `npm run lint` and `npm run build`.
 
-Never put a Supabase service-role key in browser-exposed environment variables or commit secrets.
+## Supabase migrations and initial admin
 
-## Secure server configuration
+SQL migration files are in [supabase/migrations](supabase/migrations). The migrations have been applied to the connected Gold Supabase project as part of implementation, but any other environment must apply and verify them separately. After creating the intended platform admin user in Supabase Auth, bootstrap the exact user ID through the protected platform admin table using the Supabase SQL Editor. There is no self-service platform-admin registration.
 
-- `SUPABASE_SERVICE_ROLE_KEY` is required only for the server-protected platform administration API. Configure it in hosting/server environment settings only. Never commit its value or use a `NEXT_PUBLIC_` prefix.
-- Add the first platform administrator only after creating the intended user in Supabase Auth. Then insert that exact `auth.users.id` in `public.platform_admins` using the Supabase SQL Editor. The application has no self-service platform-admin registration.
-- Owner invitation emails require a working Supabase Auth email provider and the `/auth/callback` URL added to the project's allowed redirect URLs.
+## Deployment
 
-## Important implementation notes
-
-- Gold prices must come from a verified provider or an authorised manual shop rate. No live-price provider is assumed to be configured.
-- Example rates in the UI are development-only and visibly labelled as examples.
-- The calculator is an estimate. Production invoices require the shop's approved tax configuration and legal review.
-- Tenant isolation depends on database RLS and trusted membership relationships, not UI filtering.
-- Payment, messaging and live rate integrations remain unavailable until provider credentials and callback configuration are supplied.
-
-## Build roadmap
-
-1. Foundation, tenancy, RLS, authentication and onboarding
-2. Rates, history and calculator
-3. Customers, login and versioned savings schemes
-4. Collections, payment verification, receipts and messaging
-5. POS, inventory, old-gold exchange, reports and operations
-6. Security review, tenant-isolation tests and production deployment
-
-See `docs/IMPLEMENTATION_STATUS.md` for the current scope and outstanding work.
+Use the `main` branch for production workflow. Configure required environment variables and auth redirect URLs in the hosting project, set up external provider webhooks/workers only after credentials exist, and verify the actual production URL. A successful CI build does not prove that external credentials, live payments, scheduled jobs or production deployment are configured.
