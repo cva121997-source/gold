@@ -74,20 +74,18 @@ $$;
 
 create or replace function private.create_scheme_draft(p_tenant_id uuid,p_name text,p_description text,p_scheme_type text,p_terms jsonb)
 returns uuid language plpgsql security definer set search_path=public,private,pg_temp as $$
-declare v_user_id uuid:=auth.uid(); v_scheme_id uuid; v_actor_role text; v_branch_id uuid;
+declare v_user_id uuid:=auth.uid(); v_scheme_id uuid;
 begin
  if v_user_id is null then raise exception 'Authentication required' using errcode='42501'; end if;
- select role,branch_id into v_actor_role,v_branch_id from public.tenant_memberships where tenant_id=p_tenant_id and user_id=v_user_id and is_active;
- if v_actor_role is null or v_actor_role not in ('owner','manager','scheme_manager') then raise exception 'Permission denied' using errcode='42501'; end if;
- if v_actor_role='scheme_manager' and not private.has_tenant_branch_access(p_tenant_id,v_branch_id,array['scheme_manager']) then raise exception 'Permission denied' using errcode='42501'; end if;
+ if not public.has_tenant_role(p_tenant_id,array['owner','manager','scheme_manager']) then raise exception 'Permission denied' using errcode='42501'; end if;
  if length(trim(coalesce(p_name,'')))<2 then raise exception 'Scheme name is required'; end if;
  if p_scheme_type not in ('flexible_gold_weight','fixed_monthly','custom') then raise exception 'Unsupported scheme type'; end if;
  if p_terms is null or jsonb_typeof(p_terms)<>'object' then raise exception 'Scheme terms must be a JSON object'; end if;
  if p_scheme_type='fixed_monthly' and ((p_terms->>'tenure_months') is null or (p_terms->>'monthly_instalment_inr') is null) then
    raise exception 'Configure tenure and monthly instalment amount before creating a fixed monthly scheme';
  end if;
- insert into public.scheme_templates(tenant_id,branch_id,name,description,scheme_type,status,current_version,created_by)
- values(p_tenant_id,case when v_actor_role='scheme_manager' then v_branch_id else null end,trim(p_name),nullif(trim(p_description),''),p_scheme_type,'draft',1,v_user_id) returning id into v_scheme_id;
+ insert into public.scheme_templates(tenant_id,name,description,scheme_type,status,current_version,created_by)
+ values(p_tenant_id,trim(p_name),nullif(trim(p_description),''),p_scheme_type,'draft',1,v_user_id) returning id into v_scheme_id;
  insert into public.scheme_versions(tenant_id,scheme_id,version_no,terms,terms_markdown,created_by)
  values(p_tenant_id,v_scheme_id,1,p_terms||jsonb_build_object('requires_owner_review',true,'customer_terms_approved',false),
  coalesce(p_description,'Draft terms require owner review.'),v_user_id);
@@ -213,7 +211,7 @@ create or replace function private.create_scheme_enrolment(
 )
 returns uuid language plpgsql security definer set search_path=public,private,pg_temp as $$
 declare
- v_user uuid:=auth.uid(); v_scheme_id uuid; v_scheme_type text; v_status text; v_scheme_branch uuid;
+ v_user uuid:=auth.uid(); v_scheme_id uuid; v_scheme_type text; v_status text;
  v_version integer; v_terms jsonb; v_tenure integer; v_monthly numeric(14,2);
  v_enrolment_id uuid; v_code text; v_maturity date; i integer; v_customer_branch uuid;
 begin
@@ -223,14 +221,13 @@ begin
  select c.branch_id into v_customer_branch from public.tenant_customers c where c.tenant_id=p_tenant_id and c.id=p_customer_id and c.status='active';
  if not found then raise exception 'Active customer not found'; end if;
  if not private.has_tenant_branch_access(p_tenant_id,v_customer_branch,array['owner','manager','scheme_manager','cashier','employee']) then raise exception 'Permission denied for the customer branch' using errcode='42501'; end if;
- select st.id,st.scheme_type,st.status,st.current_version,sv.terms,st.branch_id
- into v_scheme_id,v_scheme_type,v_status,v_version,v_terms,v_scheme_branch
+ select st.id,st.scheme_type,st.status,st.current_version,sv.terms
+ into v_scheme_id,v_scheme_type,v_status,v_version,v_terms
  from public.scheme_versions sv join public.scheme_templates st on st.tenant_id=sv.tenant_id and st.id=sv.scheme_id
  where sv.tenant_id=p_tenant_id and sv.id=p_scheme_version_id;
  if not found or v_status<>'published' or v_version<>(select version_no from public.scheme_versions where id=p_scheme_version_id) then
   raise exception 'Select the current version of a published scheme';
  end if;
- if v_scheme_branch is not null and v_scheme_branch is distinct from p_branch_id and not private.has_tenant_role(p_tenant_id,array['owner','manager']) then raise exception 'This scheme is not available at the selected branch' using errcode='42501'; end if;
  if v_scheme_type='fixed_monthly' then
   v_tenure:=coalesce((v_terms->>'tenure_months')::integer,0);
   v_monthly:=coalesce((v_terms->>'monthly_instalment_inr')::numeric,0);
