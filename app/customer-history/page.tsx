@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CircleAlert, MessageSquareText, RefreshCw, ShieldCheck, Users } from "lucide-react";
+import { ArrowLeft, CircleAlert, MessageSquareText, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Membership = { tenant_id: string; branch_id: string | null; role: string; tenants: { display_name: string; slug: string } | null };
@@ -224,7 +224,7 @@ export default function CustomerHistoryPage() {
         </section>
       </div>}
       {selectedCustomer && <section className="panel" style={{ marginTop: 18 }}><h2>Consent history ({consents.length})</h2>
-        {consents.length === 0 ? <p className="small muted">No consent records found. Obtain and record the customer's decision where required.</p> : <div style={{ display: "grid", gap: 10 }}>{consents.map((item) => <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><strong>{item.consent_type.replaceAll("_", " ")}</strong><div className="small muted">{item.source}{item.terms_version ? " · Version " + item.terms_version : ""}</div><div className="small muted">{dateText(item.captured_at)}</div></div><span className="pill">{item.consented && !item.withdrawn_at ? "Granted" : "Withdrawn / not granted"}</span></article>)}</div>}
+        {consents.length === 0 ? <p className="small muted">No consent records found. Obtain and record the customer&apos;s decision where required.</p> : <div style={{ display: "grid", gap: 10 }}>{consents.map((item) => <article key={item.id} style={{ border: "1px solid var(--line)", borderRadius: 10, padding: 12, minWidth: 0, display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}><div><strong>{item.consent_type.replaceAll("_", " ")}</strong><div className="small muted">{item.source}{item.terms_version ? " · Version " + item.terms_version : ""}</div><div className="small muted">{dateText(item.captured_at)}</div></div><span className="pill">{item.consented && !item.withdrawn_at ? "Granted" : "Withdrawn / not granted"}</span></article>)}</div>}
       </section>}
       <section className="panel" style={{ marginTop: 18 }}><p className="small muted" style={{ margin: 0 }}><ShieldCheck size={15} style={{ display: "inline", verticalAlign: "middle" }} /> Keep notes relevant, minimal and respectful. Avoid storing passwords, payment-card information or unnecessary sensitive details in free-text fields.</p></section>
     </>}
