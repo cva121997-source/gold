@@ -38,10 +38,15 @@ async function saveRun(
 }
 
 async function refresh(request: NextRequest) {
-  const secret = process.env.GOLD_RATE_REFRESH_SECRET || process.env.CRON_SECRET;
+  const secrets = [process.env.GOLD_RATE_REFRESH_SECRET, process.env.CRON_SECRET]
+    .map((value) => value?.trim()).filter((value): value is string => Boolean(value));
   const authorization = request.headers.get("authorization") ?? "";
-  const provided = authorization.replace(/^Bearer\s+/i, "");
-  if (!secret || !equalSecret(provided, secret)) return NextResponse.json({ error: "Unauthorized rate refresh request." }, { status: 401 });
+  const provided = authorization.replace(/^Bearer\s+/i, "").trim();
+  const authorised = secrets.some((secret) => {
+    const a = Buffer.from(provided); const b = Buffer.from(secret);
+    return a.length > 0 && a.length === b.length && require("node:crypto").timingSafeEqual(a, b);
+  });
+  if (!authorised) return NextResponse.json({ error: "Unauthorized rate refresh request." }, { status: 401 });
 
   const providerUrl = process.env.GOLD_RATE_PROVIDER_URL?.trim() ?? "";
   const providerHost = (process.env.GOLD_RATE_PROVIDER_HOST?.trim() ?? "").toLowerCase();
