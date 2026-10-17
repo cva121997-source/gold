@@ -3,6 +3,10 @@
     {
       "path": "/api/rates/provider/refresh",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/notifications/deliver",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
