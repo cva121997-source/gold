@@ -4,11 +4,11 @@ Gold is a multi-tenant jewellery shop management workspace for India, initially 
 
 ## Current functional areas
 
-- **Platform:** tenant onboarding and status controls, staff invitation workflows, platform-level administrative audit trail.
+- **Platform:** tenant onboarding and status controls, staff invitation workflows, platform-level administrative audit trail, plan-price/entitlement editor and Razorpay subscription checkout/cancellation workflow.
 - **Rates & calculator:** manual effective-dated locality/branch rates, validated provider-feed importer, daily 09:00 IST schedule, rate import history and owner/manager review before rates can be verified or published; historical rate lookup, 24K/22K/18K calculator, making modes, wastage, other charges, discounts, GST estimate and budget-to-weight.
 - **CRM:** customer directory, customer portal, append-only customer notes/interactions, follow-up history and audited consent grant/withdrawal history.
 - **Schemes:** draft/version/publish workflow, customer enrolment and terms acceptance, fixed-monthly instalment generation, manual collections with payment/rate snapshots, benefit evaluation and redemption review.
-- **Payments:** server-side Razorpay order creation and HMAC-verified capture webhook, receipt/ledger settlement flow, a refund request/review/manual-payout workflow for non-gateway payments, plus a manual provider/bank reconciliation register.
+- **Payments & billing:** server-side Razorpay order creation and HMAC-verified capture webhook, receipt/ledger settlement flow, free trial/free plan activation, hosted Razorpay subscription checkout, signed subscription status webhooks, period-end cancellation for paid subscriptions, a refund request/review/manual-payout workflow for non-gateway payments, and a manual provider/bank reconciliation register.
 - **Shop operations:** POS invoice draft/issue, invoice-linked partial-return credit notes, tax profiles, inventory/HUID fields and stock movements, old-gold valuation, orders/repairs, baseline reports and CSV exports. Credit notes do not automatically refund money or restock inventory.
 - **Operations:** subscription/entitlements view, notification queue, integration credential readiness page, tenant audit search/export, and CI checks.
 
@@ -17,8 +17,8 @@ Gold is a multi-tenant jewellery shop management workspace for India, initially 
 The repository intentionally does not pretend that missing integrations work. The following still require implementation, credentials or verified end-to-end testing:
 
 - No actual gold-rate vendor/credentials are selected or configured yet. The feed importer and daily schedule exist, but imported prices remain private and indicative until reviewed; displayed samples remain examples only.
-- Razorpay must be configured in test mode and checkout, replay/duplicate webhook handling and provider settlement tested. Gateway refunds, disputes and comprehensive reconciliation are still incomplete.
-- Subscription checkout/renewals, full platform analytics/usage limits, end-to-end feature enforcement and all tenant lifecycle operations are not finished.
+- Razorpay must be configured in test mode and checkout, replay/duplicate webhooks, subscription activation/cancellation and provider settlement tested. All subscription plan prices are currently ₹0 in the connected database until a platform administrator configures them. Gateway refunds, disputes and automatic settlement reconciliation are still incomplete.
+- Dunning/payment retry for subscriptions, invoices for SaaS billing, full platform analytics/usage limits, end-to-end feature enforcement and all tenant lifecycle operations are not finished.
 - SMS, WhatsApp and email sending adapters, approved templates, opt-out checks, worker scheduling and provider delivery callbacks are not connected.
 - Credit notes now support a ledger draft/issue/void flow, but no automatic stock return or associated payout is executed. Detailed purchasing/supplier lifecycle, advanced inventory controls, complete exports/statements and monitoring/backups need further work.
 - Automated integration/E2E tests with multiple unrelated tenant identities and branch/role combinations are still required.
