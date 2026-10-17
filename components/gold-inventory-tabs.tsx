@@ -58,8 +58,9 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
   const metalMap=useMemo(()=>new Map(metals.map((m)=>[m.id,m.name])),[metals]);
   const purityMap=useMemo(()=>new Map(purities.map((p)=>[p.id,p.label])),[purities]);
 
+  const goldMetalIds=useMemo(()=>new Set(metals.filter((metal)=>metal.code.trim().toLowerCase()==="gold"||metal.code.trim().toLowerCase()==="au"||metal.name.toLowerCase().includes("gold")).map((metal)=>metal.id)),[metals]);
   const currentItems=useMemo(()=>items.filter((item)=>["in_stock","reserved","repair"].includes(item.status))
-    .filter((item)=>{const product=productMap.get(item.product_id);return Boolean(product&&((product.metal_id===null)||metalMap.get(product.metal_id)?.toLowerCase().includes("gold")));}),[items,productMap,metalMap]);
+    .filter((item)=>{const product=productMap.get(item.product_id);return Boolean(product&&product.metal_id!==null&&goldMetalIds.has(product.metal_id));}),[items,productMap,goldMetalIds]);
   const currentWeight=currentItems.reduce((sum,item)=>sum+Number(productMap.get(item.product_id)?.net_metal_weight_grams??0),0);
   const currentValue=currentItems.reduce((sum,item)=>sum+Number(item.current_valuation??0),0);
   const currentCountByStatus={in_stock:currentItems.filter(x=>x.status==="in_stock").length,reserved:currentItems.filter(x=>x.status==="reserved").length,repair:currentItems.filter(x=>x.status==="repair").length};
