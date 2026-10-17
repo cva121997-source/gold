@@ -9,7 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 type Membership = { tenant_id: string; branch_id: string | null; role: string; tenants: { display_name: string; slug: string } | null };
 type Metal = { id: number; code: string; name: string };
 type Purity = { id: number; metal_id: number; code: string; label: string; fineness: number };
-type RateRow = { id: string; tenant_id: string; metal_id: number; purity_id: number; price_per_gram: number; state: string | null; district: string | null; city: string | null; locality: string | null; source_type: string; source_label: string | null; status: string; is_public: boolean; effective_at: string };
+type RateRow = { id: string; tenant_id: string; metal_id: number; purity_id: number; price_per_gram: number; state: string | null; district: string | null; city: string | null; locality: string | null; source_type: string; source_label: string | null; status: string; is_public: boolean; effective_at: string; expires_at: string | null };
+type ProviderRun = { id: string; provider_name: string; status: string; rates_imported: number; started_at: string; completed_at: string | null; safe_error: string | null; metadata: Record<string, unknown> };
 
 export default function RatesPage() {
   const router = useRouter();
@@ -18,6 +19,7 @@ export default function RatesPage() {
   const [metals, setMetals] = useState<Metal[]>([]);
   const [purities, setPurities] = useState<Purity[]>([]);
   const [rates, setRates] = useState<RateRow[]>([]);
+  const [providerRuns, setProviderRuns] = useState<ProviderRun[]>([]);
   const [metalId, setMetalId] = useState("");
   const [purityId, setPurityId] = useState("");
   const [price, setPrice] = useState("");
@@ -73,11 +75,18 @@ export default function RatesPage() {
     if (!tenantId) { setRates([]); return; }
     const supabase = createClient();
     const { data, error: queryError } = await supabase.from("gold_rates")
-      .select("id, tenant_id, metal_id, purity_id, price_per_gram, state, district, city, locality, source_type, source_label, status, is_public, effective_at")
+      .select("id, tenant_id, metal_id, purity_id, price_per_gram, state, district, city, locality, source_type, source_label, status, is_public, effective_at, expires_at")
       .eq("tenant_id", tenantId).order("effective_at", { ascending: false }).limit(30);
     if (queryError) { setError("Could not read the shop rate history. Confirm migration and read permissions."); return; }
     setRates((data ?? []) as RateRow[]);
-  }, [tenantId]);
+    const member = memberships.find((m) => m.tenant_id === tenantId);
+    if (member && ["owner", "manager"].includes(member.role)) {
+      const { data: runData } = await supabase.from("rate_provider_runs")
+        .select("id,provider_name,status,rates_imported,started_at,completed_at,safe_error,metadata")
+        .eq("tenant_id", tenantId).order("started_at", { ascending: false }).limit(10);
+      setProviderRuns((runData ?? []) as ProviderRun[]);
+    } else setProviderRuns([]);
+  }, [tenantId, memberships]);
 
   useEffect(() => { void loadRates(); }, [loadRates]);
 
@@ -106,6 +115,22 @@ export default function RatesPage() {
     } finally { setSaving(false); }
   }
 
+  async function reviewProviderRate(rate: RateRow, action: "verify" | "reject", publish = false) {
+    setError(""); setNotice(""); setSaving(true);
+    try {
+      const { error: reviewError } = await createClient().rpc("review_provider_gold_rate", {
+        p_tenant_id: tenantId, p_rate_id: rate.id, p_action: action, p_publish: publish
+      });
+      if (reviewError) throw reviewError;
+      setNotice(action === "reject"
+        ? "Provider rate marked stale and excluded from public display."
+        : "Provider rate review recorded. If it was expired, the database marked it stale; refresh to see the recorded status.");
+      await loadRates();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Provider rate review could not be saved.");
+    } finally { setSaving(false); }
+  }
+
   const money = (n: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(n));
   const labelFor = (rate: RateRow) => {
     const metal = metals.find((m) => m.id === rate.metal_id)?.name ?? "Metal";
@@ -120,7 +145,7 @@ export default function RatesPage() {
     {notice && <div className="notice" style={{ marginBottom: 16, color: "#1f5c3e", background: "#edf7ef", borderColor: "#cfe4d4" }}><RefreshCw size={15} style={{ flexShrink: 0 }} /><span>{notice}</span></div>}
     {loading ? <div className="panel">Loading shop rate settings…</div> : <div className="calc-layout">
       <section className="panel">
-        <h2>Publish a manual rate</h2><p className="small muted">This rate is identified as manually entered. No live market provider is connected yet.</p>
+        <h2>Publish a manual rate</h2><p className="small muted">Manual rates are marked as verified by the signed-in owner/manager. Provider-imported rates stay indicative and private until reviewed below.</p>
         {memberships.length > 1 && <div className="field" style={{ marginBottom: 15 }}><label htmlFor="tenant">Shop</label><select id="tenant" value={tenantId} onChange={(e) => setTenantId(e.target.value)}>{memberships.map((m) => <option key={m.tenant_id} value={m.tenant_id}>{m.tenants?.display_name ?? m.tenant_id}</option>)}</select></div>}
         {memberships.length === 0 ? <div className="notice"><CircleAlert size={16} /> No shop membership found. <Link className="link-text" href="/onboarding">Set up your shop</Link> first.</div> : canManage ? <form onSubmit={saveRate}>
           <div className="form-grid">
@@ -139,9 +164,19 @@ export default function RatesPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}><div><h2>Recent rate history</h2><p className="small muted">Newest first · India Standard Time</p></div><button type="button" className="btn btn-secondary" onClick={() => void loadRates()}><RefreshCw size={14} /> Refresh</button></div>
         {rates.length === 0 ? <p className="muted small">No rates have been entered for this shop yet.</p> : <div style={{ display: "grid", gap: 10 }}>{rates.map((rate) => <article className="list-card" key={rate.id} style={{ alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}><strong>{labelFor(rate)}</strong><div style={{ marginTop: 5, fontSize: 20, fontWeight: 750 }}>{money(Number(rate.price_per_gram))}<span className="small muted"> / gram</span></div><div className="small muted" style={{ marginTop: 4 }}>{[rate.locality, rate.city, rate.district, rate.state].filter(Boolean).join(", ") || "No locality saved"}</div><div className="small muted" style={{ marginTop: 4 }}><Clock3 size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {new Date(rate.effective_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</div></div>
-          <div style={{display:"grid",gap:5,justifyItems:"end"}}><span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>{rate.is_public&&<span className="pill pill-green">public</span>}</div>
+          <div style={{display:"grid",gap:5,justifyItems:"end"}}><span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>{rate.source_type === "provider" && <span className="pill">provider</span>}{rate.is_public&&<span className="pill pill-green">public</span>}</div>
+          {rate.source_type === "provider" && rate.status === "indicative" && canManage && <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"flex-end",marginTop:9}}>
+            <button className="btn btn-secondary" type="button" disabled={saving} onClick={() => void reviewProviderRate(rate,"verify",false)}>Verify privately</button>
+            <button className="btn btn-primary" type="button" disabled={saving} onClick={() => void reviewProviderRate(rate,"verify",true)}>Verify & publish</button>
+            <button className="btn btn-secondary" type="button" disabled={saving} onClick={() => void reviewProviderRate(rate,"reject",false)}>Mark stale</button>
+          </div>}
+          {rate.source_type === "provider" && rate.expires_at && <div className="small muted" style={{marginTop:6}}>Provider expiry: {new Date(rate.expires_at).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})}</div>}
         </article>)}</div>}
       </section>
+      {canManage && <section className="panel" style={{marginTop:18}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}><div><h2>Provider import history</h2><p className="small muted">The scheduled JSON feed importer records results per shop. Failed or stale imports never become verified automatically.</p></div><span className="pill">{providerRuns.length} recent runs</span></div>
+        {providerRuns.length===0 ? <p className="small muted">No provider import runs have been recorded. The endpoint is scheduled daily at 09:00 IST once the provider and cron secrets are configured.</p> : <div style={{display:"grid",gap:10,marginTop:12}}>{providerRuns.map((run)=><article key={run.id} className="list-card" style={{alignItems:"flex-start"}}><div><strong>{run.provider_name}</strong><div className="small muted">{new Date(run.started_at).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})} · {run.rates_imported} rows imported</div>{run.safe_error&&<div className="small error-text">{run.safe_error}</div>}</div><span className={"pill "+(run.status==="succeeded"?"pill-green":"pill-demo")}>{run.status}</span></article>)}</div>}
+      </section>}
     </div>}
   </div></main>;
 }
