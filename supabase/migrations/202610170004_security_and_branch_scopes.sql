@@ -56,8 +56,6 @@ revoke execute on function public.publish_scheme_draft(uuid,uuid,boolean) from p
 grant execute on function public.publish_scheme_draft(uuid,uuid,boolean) to authenticated;
 revoke execute on function public.record_manual_payment(uuid,uuid,uuid,uuid,numeric,text,text,text,text) from public,anon;
 grant execute on function public.record_manual_payment(uuid,uuid,uuid,uuid,numeric,text,text,text,text) to authenticated;
-revoke execute on function public.handle_new_auth_user() from public,anon,authenticated;
-revoke execute on function public.seed_gold_default_schemes() from public,anon,authenticated;
 
 -- Tighten tenant and branch data access. Owners/managers may access all branches; assigned staff
 -- only access rows for their assigned branch. A null branch_id denotes shared tenant-wide records.
