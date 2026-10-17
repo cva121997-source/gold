@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Download, RefreshCw, Search, ShoppingBag, Coins, PackageCheck, Boxes } from "lucide-react";
+import { Download, RefreshCw, Search, ShoppingBag, Coins, PackageCheck, Boxes, Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export type GoldInventoryTab = "current" | "sold" | "operations";
@@ -44,6 +44,20 @@ function exportCsv(filename:string, rows:unknown[][]) {
   const link=document.createElement("a");link.href=url;link.download=filename;link.click();URL.revokeObjectURL(url);
 }
 function recordName(value:unknown) { return typeof value==="string" ? value : ""; }
+function escapeHtml(value:unknown) { return String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;"); }
+function code39Svg(raw:string) {
+  const patterns:Record<string,string>={
+    "0":"nnnwwnwnn","1":"wnnwnnnnw","2":"nnwwnnnnw","3":"wnwwnnnnn","4":"nnnwwnnnw","5":"wnnwwnnnn","6":"nnwwwnnnn","7":"nnnwnnwnw","8":"wnnwnnwnn","9":"nnwwnnwnn",
+    "A":"wnnnnwnnw","B":"nnwnnwnnw","C":"wnwnnwnnn","D":"nnnnwwnnw","E":"wnnnwwnnn","F":"nnwnwwnnn","G":"nnnnnwwnw","H":"wnnnnwwnn","I":"nnwnnwwnn","J":"nnnnwwwnn",
+    "K":"wnnnnnnww","L":"nnwnnnnww","M":"wnwnnnnwn","N":"nnnnwnnww","O":"wnnnwnnwn","P":"nnwnwnnwn","Q":"nnnnnnwww","R":"wnnnnnwwn","S":"nnwnnnwwn","T":"nnnnwnwwn",
+    "U":"wwnnnnnnw","V":"nwwnnnnnw","W":"wwwnnnnnn","X":"nwnnwnnnw","Y":"wwnnwnnnn","Z":"nwwnwnnnn",
+    "-":"nwnnnnwnw",".":"wwnnnnwnn"," ":"nwwnnnwnn","$":"nwnwnwnnn","/":"nwnwnnnwn","+":"nwnnnwnwn","%":"nnnwnwnwn","*":"nwnnwnwnn"
+  };
+  const value="*"+raw.toUpperCase().replace(/[^A-Z0-9 .\\/$%+\\-]/g,"-")+"*";
+  const bars:string[]=[];let x=4;
+  for(const char of value){const pattern=patterns[char]??patterns["-"];for(let i=0;i<pattern.length;i++){const width=pattern[i]==="w"?3:1;if(i%2===0)bars.push('<rect x="'+x+'" y="0" width="'+width+'" height="38" fill="#111"/>');x+=width;}x+=1;}
+  return '<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Code 39 '+escapeHtml(value)+'" viewBox="0 0 '+(x+4)+' 38" width="100%" height="38">'+bars.join("")+'</svg>';
+}
 
 export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,products,items,branches,metals,purities}:Props) {
   const [soldRows,setSoldRows]=useState<SoldRow[]>([]);
@@ -179,6 +193,21 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
       ];})
     ]);
   }
+  function printCurrentLabels(){
+    if(filteredCurrent.length===0)return;
+    const popup=window.open("","_blank","width=900,height=700");
+    if(!popup){window.alert("Allow pop-ups for this app to print stock labels.");return;}
+    const html=filteredCurrent.map(item=>{
+      const product=productMap.get(item.product_id);
+      const purity=item.purity_id?purityMap.get(item.purity_id):product?.purity_id?purityMap.get(product.purity_id):"Purity not set";
+      const scanValue=(item.barcode||item.item_code).toUpperCase().replace(/[^A-Z0-9 .\\/$%+\\-]/g,"-").slice(0,48);
+      return '<article class="label"><header><strong>'+escapeHtml(product?.name??"Gold item")+'</strong><span>'+escapeHtml(purity??"")+'</span></header><div class="item-code">Item: '+escapeHtml(item.item_code)+'</div><div class="metadata">HUID: '+escapeHtml(item.huid||product?.huid||"—")+' · Gross: '+grams(Number(item.gross_weight_grams??product?.gross_weight_grams??0))+' g · Net: '+grams(Number(item.net_metal_weight_grams??product?.net_metal_weight_grams??0))+' g</div>'+code39Svg(scanValue)+'<div class="scan-value">Scan ID: '+escapeHtml(scanValue)+'</div><footer><span>'+escapeHtml(branchMap.get(item.branch_id??"")??"")+'</span><strong>'+escapeHtml(money(Number(item.current_valuation??0)))+'</strong></footer></article>';
+    }).join("");
+    popup.document.open();
+    popup.document.write('<!doctype html><html><head><title>Gold stock labels</title><meta charset="utf-8"><style>@page{size:A4;margin:6mm}*{box-sizing:border-box}body{font:10px Arial,sans-serif;margin:0;color:#111}.sheet{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm}.label{height:40mm;border:1px dashed #999;padding:3mm;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column;gap:1mm}.label header,.label footer{display:flex;justify-content:space-between;align-items:start;gap:3mm}.label header strong{font-size:11px;max-width:70%}.item-code{font-weight:700;font-size:10px}.metadata,.scan-value,footer{font-size:8px}.label svg{display:block;max-height:10mm;flex:1}.scan-value{text-align:center;letter-spacing:.5px}@media print{.label{border:1px dashed #bbb}}</style></head><body><div class="sheet">'+html+'</div></body></html>');
+    popup.document.close();popup.focus();popup.print();
+  }
+
   function exportSold(){
     exportCsv("gold-sold-register-"+new Date().toISOString().slice(0,10)+".csv",[
       ["Invoice","Date","Customer","Customer code","Mobile","Description","Item code","HUID","Tracking","Purity","Sold quantity","Returned quantity","Gross grams","Net grams","Rate per gram","Original amount INR","Credit notes INR","Net sold amount INR","Invoice status"],
@@ -205,7 +234,7 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12,flexWrap:"wrap"}}>
         <div><div className="eyebrow"><PackageCheck size={14}/> Live stock register</div><h2 style={{marginTop:8}}>Current Gold</h2>
           <p className="small muted">Only catalogue-linked inventory records with an in-stock, reserved or repair status are counted. Valuation is the saved stock valuation; no live rate is fabricated.</p></div>
-        <button className="btn btn-secondary" type="button" onClick={exportCurrent} disabled={filteredCurrent.length===0}><Download size={15}/> Export CSV</button>
+        <div className="action-row" style={{marginTop:0}}><button className="btn btn-secondary" type="button" onClick={printCurrentLabels} disabled={filteredCurrent.length===0}><Printer size={15}/> Print labels</button><button className="btn btn-secondary" type="button" onClick={exportCurrent} disabled={filteredCurrent.length===0}><Download size={15}/> Export CSV</button></div>
       </div>
       <div className="dashboard-grid">
         <div className="metric-card"><span className="small muted">Gold items on hand</span><div className="metric-value">{currentItems.length.toLocaleString("en-IN")}</div><div className="small muted">{currentCountByStatus.in_stock} available · {currentCountByStatus.reserved} reserved · {currentCountByStatus.repair} in repair</div></div>
