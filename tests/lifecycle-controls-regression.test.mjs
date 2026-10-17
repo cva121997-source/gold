@@ -7,6 +7,7 @@ const root = process.cwd();
 const read = (path) => readFileSync(join(root, path), "utf8");
 const lifecycleSql = read("supabase/migrations/20261017103530_gold_lifecycle_and_refund_controls.sql");
 const consentSql = read("supabase/migrations/20261017103610_gold_customer_consent_history_rpc.sql");
+const creditNoteSql = read("supabase/migrations/20261017145000_gold_credit_note_workflow.sql");
 
 test("customer CRM history tables enforce row-level security and append-only client writes", () => {
   assert.match(lifecycleSql, /create table if not exists public\.customer_notes/i);
@@ -57,4 +58,25 @@ test("new lifecycle pages are wired to database workflows", () => {
   assert.match(customerHistory, /record_customer_consent/);
   assert.match(customerHistory, /customer_interactions/);
   assert.match(auditLogs, /from\("audit_logs"\)/);
+});
+
+
+test("credit notes validate source invoice lines and prevent duplicate quantity returns", () => {
+  assert.match(creditNoteSql, /create table if not exists public\.credit_notes/i);
+  assert.match(creditNoteSql, /create table if not exists public\.credit_note_lines/i);
+  assert.match(creditNoteSql, /v_request\.quantity > v_line\.quantity-v_already/i);
+  assert.match(creditNoteSql, /cn\.status in \('draft','issued'\)/i);
+  assert.match(creditNoteSql, /for update/i);
+  assert.match(creditNoteSql, /create or replace function public\.issue_credit_note/i);
+  assert.match(creditNoteSql, /create or replace function public\.void_draft_credit_note/i);
+  assert.match(creditNoteSql, /credit_note\.issued/i);
+});
+
+test("credit-note UI invokes database draft, issue and void workflows", () => {
+  const page = read("app/credit-notes/page.tsx");
+  assert.match(page, /create_credit_note_draft/);
+  assert.match(page, /issue_credit_note/);
+  assert.match(page, /void_draft_credit_note/);
+  assert.match(page, /from\("credit_note_lines"\)/);
+  assert.match(page, /href="\/refunds"/);
 });
