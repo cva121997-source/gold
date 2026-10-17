@@ -41,7 +41,7 @@ export default function StocktakesPage(){
  const productMap=useMemo(()=>new Map(products.map(x=>[x.id,x])),[products]);
  const lineItemIds=useMemo(()=>new Set(lines.map(x=>x.inventory_item_id)),[lines]);
  const term=scanValue.trim().toLowerCase();
- const matchingItems=useMemo(()=>term?items.filter(item=>!lineItemIds.has(item.id)&&[item.item_code,item.serial_number,item.barcode,item.huid,productMap.get(item.product_id)?.name,productMap.get(item.product_id)?.product_code].some(v=>String(v??"").toLowerCase().includes(term)).slice(0,20):[],[items,lineItemIds,term,productMap]);
+ const matchingItems=useMemo(()=>term?items.filter(item=>!lineItemIds.has(item.id)&&[item.item_code,item.serial_number,item.barcode,item.huid,productMap.get(item.product_id)?.name,productMap.get(item.product_id)?.product_code].some(v=>String(v??"").toLowerCase().includes(term))).slice(0,20):[],[items,lineItemIds,term,productMap]);
  const expectedLines=lines.filter(x=>x.line_type==="expected");
  const foundLines=expectedLines.filter(x=>x.is_counted);
  const uncountedExpected=expectedLines.filter(x=>!x.is_counted);
