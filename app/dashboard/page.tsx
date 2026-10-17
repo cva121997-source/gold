@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck, Calculator, Coins, Users, WalletCards, ClipboardList, Receipt, Boxes, BarChart3, Settings2, Bell, UserCog, CreditCard, Gem, ShoppingCart, ClipboardCheck, Scale, ArrowRightLeft } from "lucide-react";
+import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck, Calculator, Coins, Users, WalletCards, ClipboardList, Receipt, Boxes, BarChart3, Settings2, Bell, UserCog, CreditCard, Gem, ShoppingCart, ClipboardCheck, Scale, ArrowRightLeft, ReceiptText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./signout";
 
@@ -44,6 +44,7 @@ export default async function DashboardPage() {
           { href: "/pos", icon: Receipt, title: "POS & billing", detail: "Draft and issued invoices" },
           { href: "/inventory", icon: Boxes, title: "Inventory", detail: "Stock register and movement history" },
           { href: "/purchasing", icon: ShoppingCart, title: "Purchasing", detail: "Suppliers, purchase orders and goods receipts" },
+          { href: "/supplier-bills", icon: ReceiptText, title: "Supplier invoices", detail: "Match bills, track payables and record payments" },
           { href: "/stocktakes", icon: ClipboardCheck, title: "Stock reconciliation", detail: "Physical stock counts and discrepancy review" },
           { href: "/inventory-controls", icon: Scale, title: "Stock alerts & valuation", detail: "Reorder thresholds and valuation audit trail" },
           { href: "/transfers", icon: ArrowRightLeft, title: "Branch transfers", detail: "Approval, dispatch, receiving and traceability" },
