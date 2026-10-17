@@ -200,9 +200,14 @@ async function refresh(request: NextRequest) {
     const insertFailed = Boolean(insertResult.error);
     const imported = insertFailed ? 0 : toInsert.length;
     importedTotal += imported; matchedTotal += matched; skippedTotal += skipped;
-    await admin.from("gold_rates").update({ status: "stale" }).eq("tenant_id", shop.id)
-      .eq("rate_source_id", sourceId).eq("source_type", "provider").eq("status", "indicative")
-      .lt("effective_at", new Date(staleThreshold).toISOString());
+    await Promise.all([
+      admin.from("gold_rates").update({ status: "stale" }).eq("tenant_id", shop.id)
+        .eq("rate_source_id", sourceId).eq("source_type", "provider").eq("status", "indicative")
+        .lt("effective_at", new Date(staleThreshold).toISOString()),
+      admin.from("gold_rates").update({ status: "stale" }).eq("tenant_id", shop.id)
+        .eq("rate_source_id", sourceId).eq("source_type", "provider").eq("status", "indicative")
+        .lt("expires_at", new Date().toISOString())
+    ]);
     const status = insertFailed ? "failed" : (rejectedRows > 0 || skipped > 0 || stale > 0 || imported < matched ? "partial" : "succeeded");
     await saveRun(admin, shop.id, providerName, startedAt, status, imported,
       insertFailed ? "Provider rows could not be saved." : null,
