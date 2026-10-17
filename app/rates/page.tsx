@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleAlert, Clock3, Plus, RefreshCw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Membership = { tenant_id: string; role: string; tenants: { display_name: string; slug: string } | null };
+type Membership = { tenant_id: string; branch_id: string | null; role: string; tenants: { display_name: string; slug: string } | null };
 type Metal = { id: number; code: string; name: string };
 type Purity = { id: number; metal_id: number; code: string; label: string; fineness: number };
 type RateRow = { id: string; tenant_id: string; metal_id: number; purity_id: number; price_per_gram: number; state: string | null; district: string | null; city: string | null; locality: string | null; source_type: string; source_label: string | null; status: string; effective_at: string };
@@ -38,7 +38,7 @@ export default function RatesPage() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { router.replace("/login"); return; }
         const [membershipResult, metalResult, purityResult] = await Promise.all([
-          supabase.from("tenant_memberships").select("tenant_id, role, tenants(display_name, slug)").eq("user_id", user.id).eq("is_active", true),
+          supabase.from("tenant_memberships").select("tenant_id, branch_id, role, tenants(display_name, slug)").eq("user_id", user.id).eq("is_active", true),
           supabase.from("metals").select("id, code, name").eq("is_active", true).order("id"),
           supabase.from("purity_definitions").select("id, metal_id, code, label, fineness").eq("is_active", true).order("fineness", { ascending: false })
         ]);
@@ -91,7 +91,7 @@ export default function RatesPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace("/login"); return; }
       const { error: insertError } = await supabase.from("gold_rates").insert({
-        tenant_id: tenantId, metal_id: Number(metalId), purity_id: Number(purityId),
+        tenant_id: tenantId, branch_id: memberships.find((m) => m.tenant_id === tenantId)?.branch_id ?? null, metal_id: Number(metalId), purity_id: Number(purityId),
         price_per_gram: Number(Number(price).toFixed(2)), state: stateName.trim() || null,
         district: district.trim() || null, city: city.trim() || null, locality: locality.trim() || null,
         source_type: "manual", source_label: "Manual rate entered by shop staff", status: "verified",

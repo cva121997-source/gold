@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, CircleAlert, Search, UserRoundPlus, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
-type Membership = { tenant_id: string; role: string; tenants: { display_name: string; slug: string } | null };
+type Membership = { tenant_id: string; branch_id: string | null; role: string; tenants: { display_name: string; slug: string } | null };
 type Customer = { id: string; customer_code: string; full_name: string; mobile_e164: string; city: string | null; status: string; created_at: string };
 
 export default function CustomersPage() {
@@ -30,7 +30,7 @@ export default function CustomersPage() {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) { router.replace("/login"); return; }
-        const { data, error: queryError } = await supabase.from("tenant_memberships").select("tenant_id, role, tenants(display_name, slug)").eq("user_id", user.id).eq("is_active", true);
+        const { data, error: queryError } = await supabase.from("tenant_memberships").select("tenant_id, branch_id, role, tenants(display_name, slug)").eq("user_id", user.id).eq("is_active", true);
         if (queryError) throw queryError;
         if (!alive) return;
         const rows = (data ?? []) as unknown as Membership[];
@@ -77,7 +77,7 @@ export default function CustomersPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.replace("/login"); return; }
       const { error: insertError } = await supabase.from("tenant_customers").insert({
-        tenant_id: tenantId, customer_code: "CUS-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
+        tenant_id: tenantId, branch_id: memberships.find((m) => m.tenant_id === tenantId)?.branch_id ?? null, customer_code: "CUS-" + crypto.randomUUID().slice(0, 8).toUpperCase(),
         full_name: fullName.trim(), mobile_e164: phone, city: city.trim() || null, created_by: user.id
       });
       if (insertError) { setError("Customer was not saved. Your role may not have permission to add customer records."); return; }
