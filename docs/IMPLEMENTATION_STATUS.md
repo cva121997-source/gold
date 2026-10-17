@@ -67,5 +67,7 @@ Updated: 2026-10-17
 - The database records provider events idempotently, verifies captured amount/currency against the locked payment order, creates the payment and receipt in one database transaction, and updates scheme instalment allocations or invoice settlement when eligible.
 - Added a server-only payment webhook processor RPC, invoice payment-order link, restricted browser write grants for provider payment/admin records and selected RLS policy performance fixes.
 - Added checkout entry points to eligible POS invoices and the customer savings portal.
+- Added date-specific public rate lookup and connected the calculator to opt-in published shop rates with metal, purity and branch/locality selection.
+- Hardened staff-entered flexible gold-weight contributions to require a fresh verified rate, save rate/weight snapshots to the payment/transaction/receipt/audit trail, and serialize same-key retries with a database advisory lock.
 - Configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` on the server, and register `/api/payments/razorpay/webhook` with Razorpay for `payment.captured`.
 - Still required before production: run CI and end-to-end tests with Razorpay test credentials, verify tenant/branch/customer cases, add refund/reconciliation screens, and complete the remaining modules listed below.
