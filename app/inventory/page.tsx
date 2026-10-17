@@ -25,18 +25,19 @@ export default function InventoryPage(){
  const [movementItem,setMovementItem]=useState("");const [movementType,setMovementType]=useState("reserve");const [destination,setDestination]=useState("");const [movementReason,setMovementReason]=useState("");
 
  useEffect(()=>{let active=true;void(async()=>{try{const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.replace("/login");return;}
- const [m,mt,p,b]=await Promise.all([supabase.from("tenant_memberships").select("tenant_id,branch_id,role,tenants(display_name,slug)").eq("user_id",user.id).eq("is_active",true),supabase.from("metals").select("id,code,name").eq("is_active",true).order("id"),supabase.from("purity_definitions").select("id,metal_id,code,label,fineness").eq("is_active",true).order("fineness",{ascending:false}),supabase.from("branches").select("id,name,branch_code").order("name")]);
+ const [m,mt,p]=await Promise.all([supabase.from("tenant_memberships").select("tenant_id,branch_id,role,tenants(display_name,slug)").eq("user_id",user.id).eq("is_active",true),supabase.from("metals").select("id,code,name").eq("is_active",true).order("id"),supabase.from("purity_definitions").select("id,metal_id,code,label,fineness").eq("is_active",true).order("fineness",{ascending:false})]);
  if(m.error||mt.error||p.error)throw new Error("Database setup incomplete");if(!active)return;
- const ms=(m.data??[]) as unknown as Membership[];const metalsData=(mt.data??[]) as Metal[];setMemberships(ms);setTenantId(ms[0]?.tenant_id??"");setMetals(metalsData);setPurities((p.data??[]) as Purity[]);setBranches((b.data??[]) as Branch[]);
+ const ms=(m.data??[]) as unknown as Membership[];const metalsData=(mt.data??[]) as Metal[];setMemberships(ms);setTenantId(ms[0]?.tenant_id??"");setMetals(metalsData);setPurities((p.data??[]) as Purity[]);
  setMetalId(String(metalsData.find(x=>x.code==="gold")?.id??metalsData[0]?.id??""));
  }catch{if(active)setError("Could not load inventory data. Apply the Gold migrations and check database access.");}finally{if(active)setLoading(false)}})();return()=>{active=false}},[router]);
- const load=useCallback(async()=>{if(!tenantId){setProducts([]);setItems([]);setMovements([]);return;}const supabase=createClient();const [p,i,m]=await Promise.all([
+ const load=useCallback(async()=>{if(!tenantId){setProducts([]);setItems([]);setMovements([]);return;}const supabase=createClient();const [p,i,m,b]=await Promise.all([
   supabase.from("products").select("id,tenant_id,product_code,name,metal_id,purity_id,net_metal_weight_grams,huid").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(500),
   supabase.from("inventory_items").select("id,tenant_id,branch_id,product_id,item_code,status,current_valuation,created_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(500),
-  supabase.from("inventory_movements").select("id,inventory_item_id,movement_type,reason,reference,created_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(30)
+  supabase.from("inventory_movements").select("id,inventory_item_id,movement_type,reason,reference,created_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(30),
+  supabase.from("branches").select("id,name,branch_code").eq("tenant_id",tenantId).eq("is_active",true).order("name")
  ]);
  if(p.error||i.error){setError("Products/stock could not be loaded. Verify membership branch scope.");return;}
- setProducts((p.data??[]) as Product[]);setItems((i.data??[]) as Item[]);setMovements((m.data??[]) as Movement[]);
+ setProducts((p.data??[]) as Product[]);setItems((i.data??[]) as Item[]);setMovements((m.data??[]) as Movement[]);setBranches((b.data??[]) as Branch[]);
  },[tenantId]);
  useEffect(()=>{void load()},[load]);
  const member=memberships.find(m=>m.tenant_id===tenantId);const canManage=["owner","manager","inventory_manager"].includes(member?.role??"");
