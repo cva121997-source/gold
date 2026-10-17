@@ -2,72 +2,80 @@
 
 Updated: 2026-10-17
 
-## Included in the initial repository foundation
+## Implemented in the repository
 
-- Next.js App Router scaffold with TypeScript and Tailwind CSS.
-- Responsive overview UI; demonstration prices are labelled as sample data.
-- Shop onboarding form that calls the trusted create-tenant RPC.
-- Manual locality-specific rate entry and append-only rate snapshots, with recent rate history.
-- Starter customer CRM page with tenant-scoped creation, duplicate-mobile checks and recent search.
-- Scheme draft UI, versioned terms, two draft templates automatically seeded for new tenants, and an owner-only review/publish RPC.
-- Additive scheme workflow migration that restricts direct template/version writes so publishing uses the audited RPC.
-- Interactive gold estimate calculator: 24K, 22K and 18K presets; weight; rate per gram; percentage, fixed and per-gram making charge modes; wastage; other charges; discount; GST estimate; calculation breakdown; approximate budget-to-weight.
-- Supabase SSR browser/server clients and session refresh middleware.
-- Phone/password sign-in using Supabase Auth and verified-mobile customer self-linking by shop slug; Supabase phone/password/verification settings still require configuration and end-to-end testing.
-- Customer portal showing the authenticated customer's linked shops, savings schemes, confirmed payment history, instalment schedule and receipts.
-- Staff invitation management with hashed single-use invitation tokens, verified email/phone matching on acceptance, and audited access deactivation/reactivation.
-- Shop settings for profile, branch locations, preferred language and effective-dated tax profiles.
-- Subscription/trial overview and feature entitlement display (plan changes await payment-provider integration).
-- In-app notification queue and delivery status display (external SMS/WhatsApp/email delivery still needs providers and a worker).
-- Server-protected platform admin tenant list, status control and owner-invitation onboarding API; service key and initial administrator must be configured server-side.
-- POS draft invoice + issue flow, inventory stock receipt and movement flow, old-gold valuation/review, customer order/repair tracking, and baseline CSV/report UI.
-- Authenticated dashboard that lists active shop memberships.
-- Initial SQL migration for tenants, branches, memberships, settings, customers, customer auth links, metals, purities, rate sources, historical gold rates, scheme drafts/versions/enrolments, append-only transaction events and audit logs.
-- RLS policies based on trusted membership and verified customer-link relationships.
-- Tenant onboarding RPC that atomically creates the tenant, owner membership, settings, default branch and initial audit record.
-- Environment template and local setup notes.
+### Platform, tenancy and access controls
+- Next.js App Router, TypeScript, Tailwind CSS and responsive shared workspace navigation.
+- One Supabase project architecture for multiple shops, tenant membership, branches, role data, tax settings, audit events and RLS-backed data access.
+- Tenant onboarding and platform-admin shop creation/status endpoints. Platform administrator bootstrap must be done manually by an existing project owner.
+- Branch-aware staff memberships and single-use staff invitations with hashed tokens and accepted-contact matching.
+- Customer login and verified shop linking through Supabase Auth. Auth phone/password/OTP and redirect settings require setup and end-to-end testing.
+- Server-only service role usage. Provider keys are not exposed through client-facing status APIs.
 
-## Not implemented yet — do not treat these as production-ready
+### Gold rates and calculator
+- Manual effective-dated shop rates by metal, purity and locality/branch, with source and status values and historical snapshots.
+- Public price board can show only rates shops explicitly opt in to publish; date lookup exists.
+- Calculator supports 24K, 22K and 18K, weight/rate inputs, percentage/fixed/per-gram making charges, wastage, other charges, discount, configurable GST estimate, calculation breakdown and approximate budget-to-weight.
+- Screenshot-regression formula tests validate the example calculation. Demonstration inputs are labelled as examples; they must never be presented as verified live market prices.
 
-- Complete platform-admin console, invitations and full tenant lifecycle management.
-- Full onboarding wizard UI, employee role editor, granular branch-level access rules and subscription billing.
-- Verified live gold-price integration, scheduled refresh, provider adapters and rate approval workflows.
-- Full CRM screens (customer profile details, consent-management history, notes, statements, exports) and verified customer account-linking/activation flow.
-- Full scheme editing/version diffing, instalment schedule generation, customer terms acceptance, payment-linked contributions, benefit eligibility and redemption workflows.
-- Refund execution, full provider reconciliation UI, automatic failed-payment retries and complete gateway dispute handling remain incomplete. Razorpay checkout order creation and signature-verified capture webhook now exist, but remain disabled until provider credentials are configured and end-to-end tested.
-- SMS, WhatsApp Business and email integrations.
-- POS, invoices/credit notes, inventory movements, old-gold exchange, repairs and orders.
-- Business reports, spreadsheet/PDF exports, backup procedures and error monitoring.
-- Automated unit, integration, tenant-isolation and end-to-end test suites.
-- Vercel deployment configuration and end-to-end production deployment verification.
+### CRM and customer portal
+- Shop customer directory with duplicate-mobile checks and tenant scoping.
+- Customer portal shows linked shops, savings schemes, confirmed payments, instalments and receipts.
+- Customer-history workspace records append-only internal notes, interactions and optional follow-up times.
+- Consent history records channel/purpose, evidence source, terms/notice version, staff actor, grant/withdrawal events and audit log events.
+- Customer profile self-linking requires verified mobile/contact matching. Full KYC/identity verification is not implemented.
 
-## Before production
+### Schemes and collections
+- Scheme draft templates, versioned terms, owner-controlled publish/review workflow, two seed templates on tenant creation and enrolled-customer terms snapshots.
+- Fixed monthly scheme enrolment generates an instalment schedule from the published terms.
+- Manual contributions validate staff access, idempotency and amount; flexible gold-weight contributions require a fresh verified rate and save the rate/weight snapshot to payment, transaction, receipt and audit event.
+- Benefit eligibility evaluation and redemption workspace for requests, owner/manager approval, rejection, completion and cancellation.
+- Customer-facing Razorpay checkout order and capture webhook path is implemented. Provider event HMAC is checked against the raw body; captured amounts and currency are verified server-side before the database settles the payment or invoice.
+- Refund request/review and manual cash/bank payout recording exist. Refund requests reserve the remaining refundable amount and are audited. Staff cannot mark a Razorpay/card/gateway refund complete through the manual path.
 
-1. Apply and review the SQL migration on the dedicated Gold Supabase project.
-2. Test policies with two unrelated tenants, an employee, and a customer linked to only one shop.
-3. Configure Supabase Auth phone/password and phone verification settings.
-4. Set the Supabase URL and publishable/anon key in local and hosting environments.
-5. Run install, lint, typecheck, build and security regression tests.
-6. Configure and verify external providers before enabling those features.
-7. Obtain appropriate review of published scheme terms and invoice tax behaviour.
+### Shop operations
+- POS invoice draft/issue workflow with tax profile requirements and rate/item snapshots.
+- Inventory product/item records, stock receipt/movement workflow and HUID field.
+- Old-gold valuation and owner/manager review.
+- Customer order and repair tracking.
+- Reports page with baseline totals/CSV output.
+- Shop settings for profile, branches, language and effective-dated tax configuration.
+- Subscription/trial overview and feature-entitlement display.
+- Notification queue and per-notification provider delivery state fields. Integrations page reports credential readiness without returning secrets.
+- Owner/manager audit-log view with search, event details and CSV export.
+- CI workflow runs type-check, unit tests, lint and production build on main pushes and pull requests.
 
-## Scope notes
+### Database safeguards added
+- CRM customer notes/interactions are tenant/branch scoped and append-only for authenticated clients.
+- Customer consent is recorded through a role-checked and audited RPC.
+- Refunds require a confirmed payment, are reviewed and audited, and cannot exceed the remaining refundable amount.
+- Platform-level administrative events are stored separately from tenant audit history and are service-role-only.
+- Rate provider run-history and notification retry metadata have been added for operational instrumentation.
+- All existing public tables have RLS enabled. Latest Supabase security advisor run returned no security lints; the performance advisor still reports unused-index information and permissive-policy overlap warnings that need review.
 
-- The calculator provides estimates and does not represent a verified live market rate.
-- Fixed rates on the overview and calculator are deterministic demonstration/regression inputs only.
-- Customer login depends on Supabase Auth settings; the application does not store plaintext passwords.
-- This schema is a foundation and must be expanded using reviewed migrations as modules are implemented.
+## Not production-complete — remaining requirements
 
+- **Live market-rate feed:** no rate provider has been selected/configured and the fetch adapter, scheduled updater, market-data licensing, stale-rate fallback, alerting and shop approval flow are not finished. Do not describe any static/sample input as a live price.
+- **Payments:** configure Razorpay test credentials and test checkout, duplicate webhook, invalid signature, delayed/replayed event and failed payment. Gateway refunds, signed refund webhooks, disputes, automatic retries and full settlement reconciliation are not finished.
+- **Subscriptions/billing:** plans and entitlements are represented, but customer checkout/renewals, webhook updates, dunning, invoices and complete tenant lifecycle are not wired.
+- **Notifications:** SMS, WhatsApp Business and email provider adapters, templates, opt-out enforcement at send time, background worker, provider callbacks and failure/retry runbooks need implementation and credentials. The queue UI and config-readiness check are not proof of delivery.
+- **POS and inventory:** credit notes, item returns, purchase/supplier lifecycle, barcodes/label printing, stock-count adjustments, transfer approval, valuation history and full inventory accounting remain incomplete.
+- **Scheme operations:** richer scheme editor/version diff and rollback, configurable first/monthly grace or weight-in periods, mature payout handling, cancellation policies, benefits/redeem-to-invoice settlement, statements and dispute handling need more coverage and legal review.
+- **CRM/customer service:** customer self-service activation, profile maintenance, richer consent/customer export workflow, statements, duplicate merge and purpose-limited data retention are incomplete.
+- **Reports and operations:** financial reconciliation UI, more comprehensive ledger reports, PDF/CSV statement exports, scheduled reports, backups/restore drill, monitoring/alerting and operational incident handling need work.
+- **Security/quality:** automated database integration tests using two unrelated shops, different roles/branches, linked/unlinked customers, money-concurrency tests, and browser E2E flows are not yet complete. Structural regression tests do not replace live tenant-isolation tests.
+- **Deployment:** Vercel production environment, required secrets, redirect URLs, cron/worker setup, domain, observability and end-to-end live deployment still need owner configuration and verification.
 
-## Razorpay first-pass implementation (2026-10-17)
+## External setup required
 
-- Added authenticated server-side Razorpay order creation for invoice payments and scheme contributions.
-- Customer checkout uses only verified shop/customer associations; staff access is checked against active shop memberships and branch scope.
-- Added HMAC SHA-256 webhook signature verification on the raw request body. A browser checkout callback never marks a payment as confirmed.
-- The database records provider events idempotently, verifies captured amount/currency against the locked payment order, creates the payment and receipt in one database transaction, and updates scheme instalment allocations or invoice settlement when eligible.
-- Added a server-only payment webhook processor RPC, invoice payment-order link, restricted browser write grants for provider payment/admin records and selected RLS policy performance fixes.
-- Added checkout entry points to eligible POS invoices and the customer savings portal.
-- Added date-specific public rate lookup and connected the calculator to opt-in published shop rates with metal, purity and branch/locality selection.
-- Hardened staff-entered flexible gold-weight contributions to require a fresh verified rate, save rate/weight snapshots to the payment/transaction/receipt/audit trail, and serialize same-key retries with a database advisory lock.
-- Configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` on the server, and register `/api/payments/razorpay/webhook` with Razorpay for `payment.captured`.
-- Still required before production: run CI and end-to-end tests with Razorpay test credentials, verify tenant/branch/customer cases, add refund/reconciliation screens, and complete the remaining modules listed below.
+1. Configure server-only `SUPABASE_SERVICE_ROLE_KEY`, plus browser-safe Supabase URL and anon/publishable key.
+2. Bootstrap the intended platform administrator through the project's protected admin table using the exact existing Supabase Auth user ID.
+3. Add Supabase Auth callback URLs and configure the intended phone/email authentication and verification providers.
+4. Configure Razorpay **test** credentials and subscribe to `payment.captured` at `/api/payments/razorpay/webhook`; run end-to-end tests before considering live mode.
+5. Select and obtain authorised gold-rate and messaging providers before configuring any related secrets.
+6. Configure Vercel production environment variables and prove the production deployment—not just a preview—works.
+7. Have jurisdiction-appropriate professionals review GST, invoice, scheme, consent, record-retention and customer-communication rules.
+
+## Current honest status
+
+The repo has a broad functional foundation and now includes additional CRM/consent history, refund controls, redemption UI, audit-log viewer, integration-readiness view and regression checks. The new SQL migrations were applied to the connected Gold Supabase project. This is **not yet a complete production SaaS**; the remaining items above are real implementation and external-configuration work, not just a checklist of credentials.
