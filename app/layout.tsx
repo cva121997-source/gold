@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calculator, CircleUserRound, Coins, LayoutDashboard, Users, WalletCards, Receipt, Boxes, ClipboardList, BarChart3, UserCog, Settings, RefreshCw, ClipboardCheck, Banknote, History, PlugZap, MessageSquareText } from "lucide-react";
+import { Calculator, CircleUserRound, Coins, LayoutDashboard, Users, WalletCards, Receipt, Boxes, ClipboardList, BarChart3, UserCog, Settings, RefreshCw, ClipboardCheck, Banknote, History, PlugZap, MessageSquareText, Scale } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -35,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/orders" className="nav-link"><ClipboardList size={16} /> Orders & repairs</Link>
               <Link href="/old-gold" className="nav-link"><Coins size={16} /> Old gold</Link>
               <Link href="/reports" className="nav-link"><BarChart3 size={16} /> Reports</Link>
+              <Link href="/reconciliation" className="nav-link"><Scale size={16} /> Reconciliation</Link>
               <Link href="/audit-logs" className="nav-link"><History size={16} /> Audit log</Link>
               <Link href="/integrations" className="nav-link"><PlugZap size={16} /> Integrations</Link>
               <Link href="/employees" className="nav-link"><UserCog size={16} /> Employees</Link>
