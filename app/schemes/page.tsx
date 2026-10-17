@@ -258,7 +258,7 @@ export default function SchemesPage() {
             <div className="field"><label htmlFor="gracePeriodDays">Grace period (days)</label><input id="gracePeriodDays" type="number" min="0" max="60" step="1" value={gracePeriodDays} onChange={(e) => setGracePeriodDays(e.target.value)} required /></div>
           </div>}
           <div className="field" style={{marginTop:14}}><label htmlFor="purityCode">Gold purity used by weight-based calculations</label><select id="purityCode" value={purityCode} onChange={(e)=>setPurityCode(e.target.value)}><option value="24K">24K / 999</option><option value="22K">22K / 916</option><option value="18K">18K / 750</option></select></div>
-          <button className="btn btn-primary" type="submit" disabled={saving}" disabled={saving} style={{ marginTop: 20, width: "100%" }}>{saving ? "Saving draft…" : <><Plus size={15} /> Save draft version</>}</button>
+          <button className="btn btn-primary" type="submit" disabled={saving} style={{ marginTop: 20, width: "100%" }}>{saving ? "Saving draft…" : <><Plus size={15} /> Save draft version</>}</button>
         </form> : <div className="notice">Your shop role does not have permission to create scheme drafts.</div>}
         <div className="notice" style={{ marginTop: 18 }}><BookOpenCheck size={16} style={{ flexShrink: 0, marginTop: 1 }} /><span>Do not describe a benefit as guaranteed until its calculation, legal and tax treatment have been reviewed and approved by the shop owner.</span></div>
       </section>
