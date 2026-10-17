@@ -13,7 +13,7 @@ type Notification = {
   safe_payload: Record<string, unknown>; attempt_count: number; max_attempts: number;
 };
 type Template = { subject: string | null; body: string; provider_template_ref: string | null; language_code: string };
-type Customer = { id: string; full_name: string; mobile_e164: string; email: string | null; communication_consent: Record<string, unknown> };
+type Customer = { id: string; customer_code: string; full_name: string; mobile_e164: string; email: string | null; communication_consent: Record<string, unknown> };
 type Json = Record<string, unknown>;
 
 const str = (value: unknown) => typeof value === "string" ? value : "";
@@ -33,7 +33,7 @@ function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] ?? char);
 }
 function interpolate(template: string, payload: Json, customer?: Customer) {
-  const data: Json = { ...payload, customer_name: customer?.full_name ?? "", customer_code: customer?.id ?? "" };
+  const data: Json = { ...payload, customer_name: customer?.full_name ?? "", customer_code: customer?.customer_code ?? "" };
   return template.replace(/\{\{\s*([a-zA-Z0-9_.-]{1,80})\s*\}\}/g, (_match, key: string) => {
     const value = key.split(".").reduce<unknown>((cur, part) =>
       cur && typeof cur === "object" ? (cur as Record<string, unknown>)[part] : undefined, data);
@@ -73,7 +73,7 @@ async function contactAndConsent(admin: ReturnType<typeof adminClient>, row: Not
   let destination = normalize(row.destination_snapshot ?? "");
   if (row.customer_id) {
     const { data, error } = await admin.from("tenant_customers")
-      .select("id,full_name,mobile_e164,email,communication_consent")
+      .select("id,customer_code,full_name,mobile_e164,email,communication_consent")
       .eq("tenant_id", row.tenant_id).eq("id", row.customer_id).maybeSingle();
     if (error || !data) throw new Error("Customer contact is not available for this shop.");
     customer = data as Customer;
@@ -116,7 +116,9 @@ async function contactAndConsent(admin: ReturnType<typeof adminClient>, row: Not
   const transactional = /(receipt|payment|transaction|otp|security|account_activation|password_reset|scheme_enrolment|due_reminder|installment_reminder)/i.test(row.notification_type);
   const hasChannelConsent = explicitPreference === true || channelConsent === true;
   const hasPromoConsent = !marketingType(row.notification_type) || promotionConsent === true;
-  const consentOk = hasChannelConsent && hasPromoConsent || (transactional && channelConsent !== false && explicitPreference !== false && promoConsent !== false);
+  const consentOk = marketingType(row.notification_type)
+    ? hasChannelConsent && promotionConsent === true
+    : hasChannelConsent || (transactional && channelConsent !== false && explicitPreference !== false);
   return {
     customer, destination, consentOk,
     consentReason: consentOk ? null : "Delivery suppressed because required channel/promotional consent is not recorded."
