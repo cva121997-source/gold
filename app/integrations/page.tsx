@@ -84,7 +84,7 @@ export default function IntegrationsPage() {
       </div>}
       <section className="panel" style={{ marginTop: 18 }}>
         <h2>Setup and security</h2>
-        <p className="small muted">Provider secrets belong in the Vercel/server environment, never in browser storage or shop-facing database rows. Provider setup instructions are in the repository's environment template and integration runbooks.</p>
+        <p className="small muted">Provider secrets belong in the Vercel/server environment, never in browser storage or shop-facing database rows. Provider setup instructions are in the repository&apos;s environment template and integration runbooks.</p>
         <p><Link className="link-text" href="https://github.com/cva121997-source/gold/blob/main/.env.example" target="_blank">Review environment variable names</Link> · <Link className="link-text" href="https://github.com/cva121997-source/gold/blob/main/docs/PAYMENTS_RAZORPAY.md" target="_blank">Razorpay runbook</Link></p>
         <p className="small muted" style={{ marginBottom: 0 }}><ShieldCheck size={15} style={{ display: "inline", verticalAlign: "middle" }} /> This page only returns boolean readiness flags; it never returns any secret values.</p>
       </section>
