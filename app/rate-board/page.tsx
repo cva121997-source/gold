@@ -1,0 +1,20 @@
+"use client";
+
+import Link from "next/link";
+import { FormEvent, useState } from "react";
+import { ArrowLeft, CircleAlert, Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+type PublicRate={shop_name:string;shop_slug:string;branch_name:string|null;state:string|null;district:string|null;city:string|null;locality:string|null;metal_code:string;metal_name:string;purity_code:string;purity_label:string;price_per_gram:number;source_label:string|null;rate_status:string;effective_at:string;is_stale:boolean};
+export default function PublicRateBoardPage(){
+ const [slug,setSlug]=useState("");const [searchSlug,setSearchSlug]=useState("");const [rates,setRates]=useState<PublicRate[]>([]);const [busy,setBusy]=useState(false);const [error,setError]=useState("");const [loaded,setLoaded]=useState(false);
+ async function search(e:FormEvent<HTMLFormElement>){e.preventDefault();setError("");setRates([]);setBusy(true);setLoaded(false);try{const {data,error}=await createClient().rpc("get_public_rate_board",{p_shop_slug:slug.trim()});if(error){setError("Public rates could not be loaded. Check the shop URL and Gold database migration.");return;}const rows=(data??[]) as PublicRate[];setRates(rows);setSearchSlug(slug.trim());setLoaded(true);if(rows.length===0)setError("This shop has not published any rates to its public board.");}catch{setError("Gold is not configured yet. Check the Supabase URL and publishable key.");}finally{setBusy(false)}}
+ const money=(v:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:2}).format(Number(v));
+ return <main><div className="page-wrap"><Link className="link-text small" href="/"><ArrowLeft size={13} style={{display:"inline",verticalAlign:"middle"}}/> Gold home</Link><div style={{marginTop:20,marginBottom:24}}><div className="eyebrow"><MapPin size={14}/> Public gold rates</div><h1 style={{marginTop:12}}>Published shop rates</h1><p className="lead">A shop must explicitly publish each rate to share it publicly. Values are shown with source and freshness labels; this is not a national market-price feed.</p></div>
+ <section className="panel"><form onSubmit={search}><div className="field"><label htmlFor="slug">Shop URL slug *</label><input id="slug" required value={slug} onChange={e=>setSlug(e.target.value.toLowerCase().trim())} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="your-jewellery-shop"/></div><button className="btn btn-primary" type="submit" disabled={busy} style={{marginTop:13}}>{busy?"Loading published rates…":"View public rates"}</button></form></section>
+ {error&&<div role="alert" className="notice" style={{marginTop:14}}><CircleAlert size={16}/>{error}</div>}
+ {loaded&&rates.length>0&&<section style={{marginTop:22}}><div className="section-head"><div><div className="eyebrow">{rates[0].shop_name}</div><h2 style={{marginTop:9}}>{[rates[0].locality,rates[0].city,rates[0].district,rates[0].state].filter(Boolean).join(", ")}</h2><p className="small muted">Shop slug: {searchSlug}</p></div></div>
+ <div className="rate-grid">{rates.map((r,i)=><article key={r.metal_code+"-"+r.purity_code+"-"+r.branch_name+"-"+i} className="rate-card"><span className="purity">{r.metal_name} · {r.purity_label}</span><strong>{money(Number(r.price_per_gram))}</strong><small>per gram{r.branch_name?" · "+r.branch_name:""}</small><div className="small muted" style={{marginTop:8}}><Clock3 size={12} style={{display:"inline",verticalAlign:"middle"}}/> {new Date(r.effective_at).toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})}</div><span className={"pill "+(r.is_stale?"pill-demo":"pill-green")} style={{marginTop:10}}>{r.is_stale?"STALE / VERIFY":"VERIFIED"}</span><small style={{marginTop:8}}>{r.source_label??r.rate_status}</small></article>)}</div>
+ <div className="notice" style={{marginTop:16}}><ShieldCheck size={15} style={{flexShrink:0}}/><span>Rates older than 36 hours, expired rates or rates not marked verified are labelled stale. Confirm the final price and tax treatment with the shop before buying.</span></div></section>}
+ </div></main>;
+}

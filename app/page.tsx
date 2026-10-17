@@ -22,6 +22,7 @@ export default function HomePage() {
         <div className="action-row">
           <Link href="/login" className="btn btn-primary">Open your workspace <ArrowRight size={16} /></Link>
           <Link href="/calculator" className="btn btn-secondary"><Calculator size={16} /> Try the calculator</Link>
+              <Link href="/rate-board" className="btn btn-secondary">Public rate board <ArrowRight size={16}/></Link>
         </div>
         <p className="small muted" style={{ marginTop: 18 }}>Built for independent jewellery shops across India, starting with Tamil Nadu.</p>
       </div>

@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 type Membership = { tenant_id: string; branch_id: string | null; role: string; tenants: { display_name: string; slug: string } | null };
 type Metal = { id: number; code: string; name: string };
 type Purity = { id: number; metal_id: number; code: string; label: string; fineness: number };
-type RateRow = { id: string; tenant_id: string; metal_id: number; purity_id: number; price_per_gram: number; state: string | null; district: string | null; city: string | null; locality: string | null; source_type: string; source_label: string | null; status: string; effective_at: string };
+type RateRow = { id: string; tenant_id: string; metal_id: number; purity_id: number; price_per_gram: number; state: string | null; district: string | null; city: string | null; locality: string | null; source_type: string; source_label: string | null; status: string; is_public: boolean; effective_at: string };
 
 export default function RatesPage() {
   const router = useRouter();
@@ -21,6 +21,7 @@ export default function RatesPage() {
   const [metalId, setMetalId] = useState("");
   const [purityId, setPurityId] = useState("");
   const [price, setPrice] = useState("");
+  const [publicOnBoard, setPublicOnBoard] = useState(false);
   const [stateName, setStateName] = useState("Tamil Nadu");
   const [district, setDistrict] = useState("");
   const [city, setCity] = useState("");
@@ -72,7 +73,7 @@ export default function RatesPage() {
     if (!tenantId) { setRates([]); return; }
     const supabase = createClient();
     const { data, error: queryError } = await supabase.from("gold_rates")
-      .select("id, tenant_id, metal_id, purity_id, price_per_gram, state, district, city, locality, source_type, source_label, status, effective_at")
+      .select("id, tenant_id, metal_id, purity_id, price_per_gram, state, district, city, locality, source_type, source_label, status, is_public, effective_at")
       .eq("tenant_id", tenantId).order("effective_at", { ascending: false }).limit(30);
     if (queryError) { setError("Could not read the shop rate history. Confirm migration and read permissions."); return; }
     setRates((data ?? []) as RateRow[]);
@@ -94,11 +95,11 @@ export default function RatesPage() {
         tenant_id: tenantId, branch_id: memberships.find((m) => m.tenant_id === tenantId)?.branch_id ?? null, metal_id: Number(metalId), purity_id: Number(purityId),
         price_per_gram: Number(Number(price).toFixed(2)), state: stateName.trim() || null,
         district: district.trim() || null, city: city.trim() || null, locality: locality.trim() || null,
-        source_type: "manual", source_label: "Manual rate entered by shop staff", status: "verified",
+        source_type: "manual", source_label: "Manual rate entered by shop staff", status: "verified", is_public: publicOnBoard,
         effective_at: new Date().toISOString(), updated_by: user.id
       });
       if (insertError) { setError("Rate not saved. Only shop owners and managers can publish rates; check the selected shop permissions."); return; }
-      setPrice(""); setNotice("Rate saved with a timestamp. The previous rate remains in history.");
+      setPrice(""); setPublicOnBoard(false); setNotice("Rate saved with a timestamp. The previous rate remains in history.");
       await loadRates();
     } catch {
       setError("Could not save this rate. Check your connection and shop access.");
@@ -131,14 +132,14 @@ export default function RatesPage() {
             <div className="field"><label htmlFor="city">City or town</label><input id="city" value={city} onChange={(e) => setCity(e.target.value)} /></div>
             <div className="field"><label htmlFor="locality">Locality or market</label><input id="locality" value={locality} onChange={(e) => setLocality(e.target.value)} /></div>
           </div>
-          <button className="btn btn-primary" type="submit" disabled={saving} style={{ width: "100%", marginTop: 20 }}>{saving ? "Saving rate…" : <><Plus size={15} /> Save rate snapshot</>}</button>
+          <label style={{display:"flex",gap:9,alignItems:"flex-start",fontSize:12,lineHeight:1.5,marginTop:14}}><input type="checkbox" checked={publicOnBoard} onChange={e=>setPublicOnBoard(e.target.checked)}/><span>Publish this rate on the public shop rate board. The public board will mark old/non-verified rates as stale rather than presenting them as live.</span></label><button className="btn btn-primary" type="submit" disabled={saving} style={{ width: "100%", marginTop: 20 }}>{saving ? "Saving rate…" : <><Plus size={15} /> Save rate snapshot</>}</button>
         </form> : <div className="notice">You can view rate history, but publishing rates requires an owner or manager role.</div>}
       </section>
       <section className="panel">
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}><div><h2>Recent rate history</h2><p className="small muted">Newest first · India Standard Time</p></div><button type="button" className="btn btn-secondary" onClick={() => void loadRates()}><RefreshCw size={14} /> Refresh</button></div>
         {rates.length === 0 ? <p className="muted small">No rates have been entered for this shop yet.</p> : <div style={{ display: "grid", gap: 10 }}>{rates.map((rate) => <article className="list-card" key={rate.id} style={{ alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}><strong>{labelFor(rate)}</strong><div style={{ marginTop: 5, fontSize: 20, fontWeight: 750 }}>{money(Number(rate.price_per_gram))}<span className="small muted"> / gram</span></div><div className="small muted" style={{ marginTop: 4 }}>{[rate.locality, rate.city, rate.district, rate.state].filter(Boolean).join(", ") || "No locality saved"}</div><div className="small muted" style={{ marginTop: 4 }}><Clock3 size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {new Date(rate.effective_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</div></div>
-          <span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>
+          <div style={{display:"grid",gap:5,justifyItems:"end"}}><span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>{rate.is_public&&<span className="pill pill-green">public</span>}</div>
         </article>)}</div>}
       </section>
     </div>}
