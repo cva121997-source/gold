@@ -27,13 +27,33 @@ export default function GoldCalculator() {
     const other = parsePositive(otherCharges);
     const discountValue = Math.min(parsePositive(discount), goldValue + making + wastage + other);
     const taxableSubtotal = Math.max(0, goldValue + making + wastage + other - discountValue);
-    const gst = gstEnabled ? taxableSubtotal * parsePositive(gstPercent) / 100 : 0;
+    const gst = gstEnabled ? Math.round(taxableSubtotal * parsePositive(gstPercent) / 100) : 0;
     const total = Math.round((taxableSubtotal + gst) * 100) / 100;
-    const variableMakingPerGram = makingMode === "percent" ? gramRate * makingInputValue / 100 : makingMode === "perGram" ? makingInputValue : 0;
-    const fixedMaking = makingMode === "fixed" ? makingInputValue : 0;
-    const variablePerGram = gramRate + variableMakingPerGram + gramRate * parsePositive(wastagePercent) / 100;
-    const taxMultiplier = gstEnabled ? 1 + parsePositive(gstPercent) / 100 : 1;
-    const budgetGrams = variablePerGram > 0 ? Math.max(0, (parsePositive(budget) / taxMultiplier - fixedMaking - other) / variablePerGram) : 0;
+
+    // Use the same forward formula for the inverse budget estimate, including capped discount and rounded GST.
+    const targetBudget = parsePositive(budget);
+    const costForWeight = (grams: number) => {
+      const baseGold = gramRate * grams;
+      const baseMaking = makingMode === "percent"
+        ? baseGold * makingInputValue / 100
+        : makingMode === "perGram"
+          ? makingInputValue * grams
+          : makingInputValue;
+      const baseWastage = baseGold * parsePositive(wastagePercent) / 100;
+      const rawSubtotal = baseGold + baseMaking + baseWastage + other;
+      const appliedDiscount = Math.min(parsePositive(discount), rawSubtotal);
+      const subtotal = Math.max(0, rawSubtotal - appliedDiscount);
+      const tax = gstEnabled ? Math.round(subtotal * parsePositive(gstPercent) / 100) : 0;
+      return subtotal + tax;
+    };
+    let low = 0;
+    let high = Math.max((targetBudget / Math.max(gramRate, 1)) * 2 + 1, 1);
+    for (let i = 0; i < 60; i += 1) {
+      const middle = (low + high) / 2;
+      if (costForWeight(middle) <= targetBudget) low = middle;
+      else high = middle;
+    }
+    const budgetGrams = targetBudget > 0 && gramRate > 0 ? low : 0;
     return { goldValue, making, wastage, other, discount: discountValue, taxableSubtotal, gst, total, budgetGrams };
   }, [rate, weight, makingMode, makingInput, wastagePercent, otherCharges, discount, gstEnabled, gstPercent, budget]);
 

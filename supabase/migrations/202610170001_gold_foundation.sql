@@ -216,9 +216,6 @@ begin
   if v_user_id is null then raise exception 'Authentication required' using errcode = '42501'; end if;
   if length(trim(coalesce(p_display_name, ''))) < 2 then raise exception 'Shop display name must contain at least 2 characters'; end if;
   if v_slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' or length(v_slug) > 60 then raise exception 'Shop slug format is invalid'; end if;
-  if exists (select 1 from public.tenant_memberships where user_id = v_user_id and role = 'owner' and is_active) then
-    raise exception 'This account already owns a shop; additional shops require an authorised platform workflow';
-  end if;
   insert into public.tenants(code, slug, display_name, state, city, district, locality)
     values (upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)), v_slug, trim(p_display_name), nullif(trim(p_state), ''), nullif(trim(p_city), ''), nullif(trim(p_district), ''), nullif(trim(p_locality), ''))
     returning id into v_tenant_id;
@@ -284,7 +281,7 @@ create policy "customers_staff_or_self_read" on public.tenant_customers for sele
 create policy "customers_staff_insert" on public.tenant_customers for insert to authenticated with check (public.has_tenant_role(tenant_id, array['owner','manager','accountant','cashier','scheme_manager','employee']));
 create policy "customers_staff_update" on public.tenant_customers for update to authenticated using (public.has_tenant_role(tenant_id, array['owner','manager','accountant','cashier','scheme_manager','employee'])) with check (public.has_tenant_role(tenant_id, array['owner','manager','accountant','cashier','scheme_manager','employee']));
 create policy "customer_links_read_self_or_staff" on public.customer_auth_links for select to authenticated using (auth_user_id = auth.uid() or public.is_tenant_member(tenant_id));
-create policy "customer_links_manage_managers" on public.customer_auth_links for all to authenticated using (public.has_tenant_role(tenant_id, array['owner','manager'])) with check (public.has_tenant_role(tenant_id, array['owner','manager']));
+-- Client-side users cannot self-assert customer identity verification. Link writes require a trusted, verified server-side workflow.
 
 create policy "metals_read_all" on public.metals for select to anon, authenticated using (true);
 create policy "purities_read_all" on public.purity_definitions for select to anon, authenticated using (true);
@@ -314,6 +311,10 @@ create policy "scheme_transactions_staff_or_customer_read" on public.scheme_tran
 create policy "scheme_transactions_staff_insert" on public.scheme_transactions for insert to authenticated with check (public.has_tenant_role(tenant_id, array['owner','manager','accountant','cashier','scheme_manager']));
 -- Deliberately no authenticated UPDATE or DELETE policy on scheme_transactions (append-only ledger).
 create policy "audit_logs_read_managers" on public.audit_logs for select to authenticated using (tenant_id is not null and public.has_tenant_role(tenant_id, array['owner','manager']));
+
+-- Tenant owners cannot alter platform-managed lifecycle status or internal codes through the public API.
+revoke update on public.tenants from authenticated;
+grant update (display_name, legal_name, state, district, city, locality, pincode, timezone) on public.tenants to authenticated;
 
 insert into public.metals(code, name) values ('gold','Gold'), ('silver','Silver'), ('platinum','Platinum') on conflict (code) do nothing;
 insert into public.purity_definitions(metal_id, code, label, fineness)
