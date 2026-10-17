@@ -35,7 +35,7 @@ async function saveEntitlements(admin: ReturnType<typeof adminClient>, tenantId:
     let limit_value: number | null = null;
     if (typeof value === "boolean") enabled = value;
     else if (typeof value === "number" && Number.isFinite(value)) {
-      enabled = value > 0 || value === 0;
+      enabled = value > 0;
       limit_value = Number.isInteger(value) && value >= 0 ? value : null;
     } else if (value === null) enabled = true;
     return {
