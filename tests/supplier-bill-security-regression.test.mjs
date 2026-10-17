@@ -16,7 +16,7 @@ test("supplier price variance approval fields require the controlled RPC and are
  assert.match(hardening,/price variance approval fields are writable only through the audited approval workflow/i);
  assert.match(hardening,/gold\.supplier_bill_variance_workflow/i);
  assert.match(hardening,/approve_supplier_bill_price_variance/i);
- assert.match(hardening,/invalidate_supplier_bill_variance_after_line_change/i);
+ assert.match(hardening,/invalidate_supplier_bill_variance_approval/i);
  assert.match(page,/price_variance_approved_by/);
  assert.match(page,/approveVariance/);
 });
