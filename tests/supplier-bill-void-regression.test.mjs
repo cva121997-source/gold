@@ -8,7 +8,7 @@ const page=readFileSync(join(process.cwd(),"app/supplier-bills/page.tsx"),"utf8"
 test("supplier bill voiding is auditable and cannot erase payment history",()=>{
  assert.match(migration,/create or replace function public\.void_supplier_bill/i);
  assert.match(migration,/provide a void reason between 5 and 500 characters/i);
- assert.match(migration,/only a draft or unpaid posted bills can be voided/i);
+ assert.match(migration,/only draft or unpaid posted bills can be voided/i);
  assert.match(migration,/reverse supplier payment entries first/i);
  assert.match(migration,/supplier_bill\.voided/i);
  assert.match(page,/rpc\("void_supplier_bill"/i);
