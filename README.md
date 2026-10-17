@@ -10,7 +10,9 @@ This initial commit establishes the application foundation and the first usable 
 - Supabase SSR client setup and environment template
 - Multi-tenant schema, memberships, branch support, rate history and scheme foundations
 - RLS policies for tenant-scoped records and an audited tenant-onboarding RPC
-- Configurable gold rate board and calculator with transparent charge breakdown
+- Local manual rate management and historical rate snapshots
+- Customer directory and draft savings-scheme administration foundations
+- Configurable gold rate preview and calculator with transparent charge breakdown
 - Mobile-friendly navigation and dashboard shell
 - Development/test rate values clearly identified as examples
 

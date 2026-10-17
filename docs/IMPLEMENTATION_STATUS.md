@@ -6,6 +6,11 @@ Updated: 2026-10-17
 
 - Next.js App Router scaffold with TypeScript and Tailwind CSS.
 - Responsive overview UI; demonstration prices are labelled as sample data.
+- Shop onboarding form that calls the trusted create-tenant RPC.
+- Manual locality-specific rate entry and append-only rate snapshots, with recent rate history.
+- Starter customer CRM page with tenant-scoped creation, duplicate-mobile checks and recent search.
+- Scheme draft UI, versioned terms, two draft templates automatically seeded for new tenants, and an owner-only review/publish RPC.
+- Additive scheme workflow migration that restricts direct template/version writes so publishing uses the audited RPC.
 - Interactive gold estimate calculator: 24K, 22K and 18K presets; weight; rate per gram; percentage, fixed and per-gram making charge modes; wastage; other charges; discount; GST estimate; calculation breakdown; approximate budget-to-weight.
 - Supabase SSR browser/server clients and session refresh middleware.
 - Phone/password sign-in using Supabase Auth; Supabase phone/password settings still need configuration and end-to-end testing.
@@ -20,8 +25,8 @@ Updated: 2026-10-17
 - Complete platform-admin console, invitations and full tenant lifecycle management.
 - Full onboarding wizard UI, employee role editor, granular branch-level access rules and subscription billing.
 - Verified live gold-price integration, scheduled refresh, provider adapters and rate approval workflows.
-- Full CRM screens and customer account-linking/verification flow.
-- Scheme administration UI, instalment schedule generation, terms acceptance UX, benefit eligibility and redemption workflows.
+- Full CRM screens (customer profile details, consent-management history, notes, statements, exports) and verified customer account-linking/activation flow.
+- Full scheme editing/version diffing, instalment schedule generation, customer terms acceptance, payment-linked contributions, benefit eligibility and redemption workflows.
 - Payment gateway integration, verified signatures/webhooks, refunds, reconciliation and receipt numbering.
 - SMS, WhatsApp Business and email integrations.
 - POS, invoices/credit notes, inventory movements, old-gold exchange, repairs and orders.
