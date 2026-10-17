@@ -87,7 +87,7 @@ export default function ReportsPage(){
 
  function exportCsv(){
   const rows=[["Type","Reference","Date","Status","Amount INR","Method","Branch"],
-   ...payments.map(p=>["Payment",p.reference??p.id,p.created_at,p.status,String(p.amount),p.payment_method,branches.find(b=>b.id===p.branch_id)?.name??""]),
+   ...payments.map(p=>["Payment",p.id,p.created_at,p.status,String(p.amount),p.payment_method,branches.find(b=>b.id===p.branch_id)?.name??""]),
    ...invoices.map(i=>["Invoice",i.invoice_number,i.invoice_date,i.status,String(i.total_amount),"",branches.find(b=>b.id===i.branch_id)?.name??""]),
    ...creditNotes.map(c=>["Credit note",c.credit_note_number,c.issued_at??c.created_at,c.status,String(c.total_amount),"",branches.find(b=>b.id===c.branch_id)?.name??""])];
   const csv=rows.map(row=>row.map(value=>'"'+String(value??"").replaceAll('"','""')+'"').join(",")).join("\r\n");
