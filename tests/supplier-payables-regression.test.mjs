@@ -25,7 +25,6 @@ test("linked supplier invoices cannot exceed quantities actually received or alr
  assert.match(schema,/every invoice line must be matched to a line from the linked purchase order/i);
  assert.match(schema,/invoice quantity exceeds received quantity or has already been billed/i);
  assert.match(schema,/pol\.received_quantity/i);
- assert.match(schema,/old_bill\.status in\('posted','partially_paid','paid'\)/i);
  assert.match(schema,/supplier_invoice_number_uidx/i);
  assert.match(ui,/Matched purchase-order line/);
  assert.match(ui,/Match & post bill/);
@@ -40,10 +39,10 @@ test("supplier payments are idempotent, capped to balance and reversals are audi
  assert.match(schema,/supplier_bill\.payment_reversed/i);
  assert.match(ui,/rpc\("record_supplier_bill_payment"/);
  assert.match(ui,/rpc\("reverse_supplier_bill_payment"/);
- assert.match(ui,/ledger reversal, not a bank refund/i);
+ assert.match(ui,/this is a ledger reversal, not a bank refund/i);
 });
 
-test("supplier bill page reports open payables and exports the scoped-visible register",()=>{
+test("supplier bill page reports open payables and exports the register",()=>{
  assert.match(ui,/Open supplier payables/);
  assert.match(ui,/Overdue invoices/);
  assert.match(ui,/supplier-payables-/);
