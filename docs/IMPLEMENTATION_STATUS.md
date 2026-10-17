@@ -14,6 +14,8 @@ Updated: 2026-10-17
 
 ### Gold rates and calculator
 - Manual effective-dated shop rates by metal, purity and locality/branch, with source and status values and historical snapshots.
+- A provider-agnostic JSON-feed refresh API validates timestamped rates, matches state/district/city/locality, records per-shop import runs, avoids duplicate snapshots, and imports as private indicative/stale rows. A Vercel Cron schedule runs daily at 09:00 India time when secrets/provider are configured.
+- Owner/manager review RPC lets shops verify or reject imported indicative rates and separately choose whether a verified rate is public. Expired or older-than-36-hour feed rows cannot be verified.
 - Public price board can show only rates shops explicitly opt in to publish; date lookup exists.
 - Calculator supports 24K, 22K and 18K, weight/rate inputs, percentage/fixed/per-gram making charges, wastage, other charges, discount, configurable GST estimate, calculation breakdown and approximate budget-to-weight.
 - Screenshot-regression formula tests validate the example calculation. Demonstration inputs are labelled as examples; they must never be presented as verified live market prices.
@@ -32,6 +34,8 @@ Updated: 2026-10-17
 - Benefit eligibility evaluation and redemption workspace for requests, owner/manager approval, rejection, completion and cancellation.
 - Customer-facing Razorpay checkout order and capture webhook path is implemented. Provider event HMAC is checked against the raw body; captured amounts and currency are verified server-side before the database settles the payment or invoice.
 - Refund request/review and manual cash/bank payout recording exist. Refund requests reserve the remaining refundable amount and are audited. Staff cannot mark a Razorpay/card/gateway refund complete through the manual path.
+- Manual provider/bank reconciliation register supports period comparison, evidence notes, status tracking and CSV export; it does not fetch statements or validate provider payouts automatically.
+- Credit-note workflow creates an invoice-linked draft for selected line quantities, reserves already-credited quantities, prorates from invoice line/tax snapshots, and supports audited issue/void. Stock return and refund payment remain separate explicit workflows.
 
 ### Shop operations
 - POS invoice draft/issue workflow with tax profile requirements and rate/item snapshots.
@@ -51,18 +55,18 @@ Updated: 2026-10-17
 - Refunds require a confirmed payment, are reviewed and audited, and cannot exceed the remaining refundable amount.
 - Platform-level administrative events are stored separately from tenant audit history and are service-role-only.
 - Rate provider run-history and notification retry metadata have been added for operational instrumentation.
-- All existing public tables have RLS enabled. Latest Supabase security advisor run returned no security lints; the performance advisor still reports unused-index information and permissive-policy overlap warnings that need review.
+- All public tables currently have RLS enabled (verified live on the connected project after adding the lifecycle tables). The Supabase security advisor currently reports `authenticated_security_definer_function_executable` warnings for workflow RPCs that are granted to authenticated callers; those functions perform tenant/role/branch checks internally, but the warnings need a formal security review. The performance advisor has also reported unused-index information and permissive-policy overlap warnings that need review.
 
 ## Not production-complete — remaining requirements
 
-- **Live market-rate feed:** no rate provider has been selected/configured and the fetch adapter, scheduled updater, market-data licensing, stale-rate fallback, alerting and shop approval flow are not finished. Do not describe any static/sample input as a live price.
-- **Payments:** configure Razorpay test credentials and test checkout, duplicate webhook, invalid signature, delayed/replayed event and failed payment. Gateway refunds, signed refund webhooks, disputes, automatic retries and full settlement reconciliation are not finished.
+- **Live market-rate feed:** the generic importer, daily schedule, input validation, import audit, stale handling and owner/manager review are implemented, but no actual provider has been selected/configured or tested. Provider schema compatibility, authorisation/licensing, alerting and real feed monitoring remain; no real rate data is imported until secrets are set. Do not describe any static/sample input as a live price.
+- **Payments:** configure Razorpay test credentials and test checkout, duplicate webhook, invalid signature, delayed/replayed event and failed payment. Gateway refunds, signed refund webhooks, disputes, automatic retries and automated provider settlement reconciliation are not finished; only a manual expected-vs-statement reconciliation register is available.
 - **Subscriptions/billing:** plans and entitlements are represented, but customer checkout/renewals, webhook updates, dunning, invoices and complete tenant lifecycle are not wired.
 - **Notifications:** SMS, WhatsApp Business and email provider adapters, templates, opt-out enforcement at send time, background worker, provider callbacks and failure/retry runbooks need implementation and credentials. The queue UI and config-readiness check are not proof of delivery.
-- **POS and inventory:** credit notes, item returns, purchase/supplier lifecycle, barcodes/label printing, stock-count adjustments, transfer approval, valuation history and full inventory accounting remain incomplete.
+- **POS and inventory:** invoice-linked credit notes/partial return quantities now exist, but credit notes do not automatically move stock or refund money. Purchase/supplier lifecycle, barcodes/label printing, stock-count adjustments, transfer approval, valuation history and full inventory accounting remain incomplete.
 - **Scheme operations:** richer scheme editor/version diff and rollback, configurable first/monthly grace or weight-in periods, mature payout handling, cancellation policies, benefits/redeem-to-invoice settlement, statements and dispute handling need more coverage and legal review.
 - **CRM/customer service:** customer self-service activation, profile maintenance, richer consent/customer export workflow, statements, duplicate merge and purpose-limited data retention are incomplete.
-- **Reports and operations:** financial reconciliation UI, more comprehensive ledger reports, PDF/CSV statement exports, scheduled reports, backups/restore drill, monitoring/alerting and operational incident handling need work.
+- **Reports and operations:** manual reconciliation and audit/credit-note CSV logs exist; more comprehensive ledger reports, PDF/CSV customer statements, scheduled reports, backups/restore drill, monitoring/alerting and operational incident handling need work.
 - **Security/quality:** automated database integration tests using two unrelated shops, different roles/branches, linked/unlinked customers, money-concurrency tests, and browser E2E flows are not yet complete. Structural regression tests do not replace live tenant-isolation tests.
 - **Deployment:** Vercel production environment, required secrets, redirect URLs, cron/worker setup, domain, observability and end-to-end live deployment still need owner configuration and verification.
 
@@ -78,4 +82,4 @@ Updated: 2026-10-17
 
 ## Current honest status
 
-The repo has a broad functional foundation and now includes additional CRM/consent history, refund controls, redemption UI, audit-log viewer, integration-readiness view and regression checks. The new SQL migrations were applied to the connected Gold Supabase project. This is **not yet a complete production SaaS**; the remaining items above are real implementation and external-configuration work, not just a checklist of credentials.
+The repo has a broad functional foundation and now includes additional CRM/consent history, refund controls, redemption UI, credit-note and manual reconciliation workflows, an auditable gold-rate provider importer/review flow, audit-log viewer, integration-readiness view and regression checks. The new SQL migrations were applied to the connected Gold Supabase project. This is **not yet a complete production SaaS**; the remaining items above are real implementation and external-configuration work, not just a checklist of credentials.
