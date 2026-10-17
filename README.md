@@ -5,22 +5,22 @@ Gold is a multi-tenant jewellery shop management workspace for India, initially 
 ## Current functional areas
 
 - **Platform:** tenant onboarding and status controls, staff invitation workflows, platform-level administrative audit trail.
-- **Rates & calculator:** manual effective-dated locality/branch rates, opted-in public rate board/history lookup, 24K/22K/18K calculator, configurable making modes, wastage, other charges, discounts, GST estimate and budget-to-weight.
+- **Rates & calculator:** manual effective-dated locality/branch rates, validated provider-feed importer, daily 09:00 IST schedule, rate import history and owner/manager review before rates can be verified or published; historical rate lookup, 24K/22K/18K calculator, making modes, wastage, other charges, discounts, GST estimate and budget-to-weight.
 - **CRM:** customer directory, customer portal, append-only customer notes/interactions, follow-up history and audited consent grant/withdrawal history.
 - **Schemes:** draft/version/publish workflow, customer enrolment and terms acceptance, fixed-monthly instalment generation, manual collections with payment/rate snapshots, benefit evaluation and redemption review.
-- **Payments:** server-side Razorpay order creation and HMAC-verified capture webhook, receipt/ledger settlement flow, and a refund request/review/approved manual payout workflow for non-gateway payments.
-- **Shop operations:** POS invoice draft/issue, tax profiles, inventory/HUID fields and stock movements, old-gold valuation, orders/repairs, baseline reports and CSV exports.
+- **Payments:** server-side Razorpay order creation and HMAC-verified capture webhook, receipt/ledger settlement flow, a refund request/review/manual-payout workflow for non-gateway payments, plus a manual provider/bank reconciliation register.
+- **Shop operations:** POS invoice draft/issue, invoice-linked partial-return credit notes, tax profiles, inventory/HUID fields and stock movements, old-gold valuation, orders/repairs, baseline reports and CSV exports. Credit notes do not automatically refund money or restock inventory.
 - **Operations:** subscription/entitlements view, notification queue, integration credential readiness page, tenant audit search/export, and CI checks.
 
 ## Important: not yet a fully production-ready platform
 
 The repository intentionally does not pretend that missing integrations work. The following still require implementation, credentials or verified end-to-end testing:
 
-- No live daily gold-rate provider or scheduled refresh worker is configured; displayed sample values are examples only until a shop publishes an approved rate.
+- No actual gold-rate vendor/credentials are selected or configured yet. The feed importer and daily schedule exist, but imported prices remain private and indicative until reviewed; displayed samples remain examples only.
 - Razorpay must be configured in test mode and checkout, replay/duplicate webhook handling and provider settlement tested. Gateway refunds, disputes and comprehensive reconciliation are still incomplete.
 - Subscription checkout/renewals, full platform analytics/usage limits, end-to-end feature enforcement and all tenant lifecycle operations are not finished.
 - SMS, WhatsApp and email sending adapters, approved templates, opt-out checks, worker scheduling and provider delivery callbacks are not connected.
-- POS returns/credit notes, detailed purchasing/supplier lifecycle, advanced inventory controls, complete exports/statements and monitoring/backups need further work.
+- Credit notes now support a ledger draft/issue/void flow, but no automatic stock return or associated payout is executed. Detailed purchasing/supplier lifecycle, advanced inventory controls, complete exports/statements and monitoring/backups need further work.
 - Automated integration/E2E tests with multiple unrelated tenant identities and branch/role combinations are still required.
 
 See [the implementation status checklist](docs/IMPLEMENTATION_STATUS.md) and [Razorpay setup guide](docs/PAYMENTS_RAZORPAY.md) for the precise feature state and setup constraints.
