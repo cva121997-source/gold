@@ -34,7 +34,7 @@ Updated: 2026-10-17
 - Verified live gold-price integration, scheduled refresh, provider adapters and rate approval workflows.
 - Full CRM screens (customer profile details, consent-management history, notes, statements, exports) and verified customer account-linking/activation flow.
 - Full scheme editing/version diffing, instalment schedule generation, customer terms acceptance, payment-linked contributions, benefit eligibility and redemption workflows.
-- Payment gateway integration, verified signatures/webhooks, refunds, reconciliation and receipt numbering.
+- Refund execution, full provider reconciliation UI, automatic failed-payment retries and complete gateway dispute handling remain incomplete. Razorpay checkout order creation and signature-verified capture webhook now exist, but remain disabled until provider credentials are configured and end-to-end tested.
 - SMS, WhatsApp Business and email integrations.
 - POS, invoices/credit notes, inventory movements, old-gold exchange, repairs and orders.
 - Business reports, spreadsheet/PDF exports, backup procedures and error monitoring.
@@ -57,3 +57,15 @@ Updated: 2026-10-17
 - Fixed rates on the overview and calculator are deterministic demonstration/regression inputs only.
 - Customer login depends on Supabase Auth settings; the application does not store plaintext passwords.
 - This schema is a foundation and must be expanded using reviewed migrations as modules are implemented.
+
+
+## Razorpay first-pass implementation (2026-10-17)
+
+- Added authenticated server-side Razorpay order creation for invoice payments and scheme contributions.
+- Customer checkout uses only verified shop/customer associations; staff access is checked against active shop memberships and branch scope.
+- Added HMAC SHA-256 webhook signature verification on the raw request body. A browser checkout callback never marks a payment as confirmed.
+- The database records provider events idempotently, verifies captured amount/currency against the locked payment order, creates the payment and receipt in one database transaction, and updates scheme instalment allocations or invoice settlement when eligible.
+- Added a server-only payment webhook processor RPC, invoice payment-order link, restricted browser write grants for provider payment/admin records and selected RLS policy performance fixes.
+- Added checkout entry points to eligible POS invoices and the customer savings portal.
+- Configure `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` on the server, and register `/api/payments/razorpay/webhook` with Razorpay for `payment.captured`.
+- Still required before production: run CI and end-to-end tests with Razorpay test credentials, verify tenant/branch/customer cases, add refund/reconciliation screens, and complete the remaining modules listed below.
