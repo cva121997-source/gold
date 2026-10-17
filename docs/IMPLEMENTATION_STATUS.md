@@ -45,6 +45,9 @@ Updated: 2026-10-17
 - Reports page with baseline totals/CSV output.
 - Shop settings for profile, branches, language and effective-dated tax configuration.
 - Subscription/trial overview and feature-entitlement display.
+- Platform-admin plan catalogue editor for monthly/annual INR prices, trial duration, feature limits and activation state.
+- Owner-only free plan/trial activation and Razorpay-hosted paid subscription checkout; paid subscriptions remain pending until a signature-verified lifecycle webhook updates the database. Paid cancellations are scheduled at the period end.
+- Separate raw-body HMAC-verified subscription webhook, deduplicated event ledger, service-role-only state processor, stale-event protection and plan entitlement synchronization on activation/cancellation.
 - Notification queue and per-notification provider delivery state fields. Integrations page reports credential readiness without returning secrets.
 - Owner/manager audit-log view with search, event details and CSV export.
 - CI workflow runs type-check, unit tests, lint and production build on main pushes and pull requests.
@@ -61,7 +64,7 @@ Updated: 2026-10-17
 
 - **Live market-rate feed:** the generic importer, daily schedule, input validation, import audit, stale handling and owner/manager review are implemented, but no actual provider has been selected/configured or tested. Provider schema compatibility, authorisation/licensing, alerting and real feed monitoring remain; no real rate data is imported until secrets are set. Do not describe any static/sample input as a live price.
 - **Payments:** configure Razorpay test credentials and test checkout, duplicate webhook, invalid signature, delayed/replayed event and failed payment. Gateway refunds, signed refund webhooks, disputes, automatic retries and automated provider settlement reconciliation are not finished; only a manual expected-vs-statement reconciliation register is available.
-- **Subscriptions/billing:** plans and entitlements are represented, but customer checkout/renewals, webhook updates, dunning, invoices and complete tenant lifecycle are not wired.
+- **Subscriptions/billing:** plan pricing/entitlement management, free trials, hosted Razorpay subscription checkout, signed lifecycle webhooks and cancellation are wired. No paid prices or merchant secrets are configured yet, and test-mode end-to-end checkout has not been performed. Dunning/retry recovery, SaaS billing invoices, grace-period policy and full subscription analytics remain.
 - **Notifications:** SMS, WhatsApp Business and email provider adapters, templates, opt-out enforcement at send time, background worker, provider callbacks and failure/retry runbooks need implementation and credentials. The queue UI and config-readiness check are not proof of delivery.
 - **POS and inventory:** invoice-linked credit notes/partial return quantities now exist, but credit notes do not automatically move stock or refund money. Purchase/supplier lifecycle, barcodes/label printing, stock-count adjustments, transfer approval, valuation history and full inventory accounting remain incomplete.
 - **Scheme operations:** richer scheme editor/version diff and rollback, configurable first/monthly grace or weight-in periods, mature payout handling, cancellation policies, benefits/redeem-to-invoice settlement, statements and dispute handling need more coverage and legal review.
@@ -75,11 +78,12 @@ Updated: 2026-10-17
 1. Configure server-only `SUPABASE_SERVICE_ROLE_KEY`, plus browser-safe Supabase URL and anon/publishable key.
 2. Bootstrap the intended platform administrator through the project's protected admin table using the exact existing Supabase Auth user ID.
 3. Add Supabase Auth callback URLs and configure the intended phone/email authentication and verification providers.
-4. Configure Razorpay **test** credentials and subscribe to `payment.captured` at `/api/payments/razorpay/webhook`; run end-to-end tests before considering live mode.
-5. Select and obtain authorised gold-rate and messaging providers before configuring any related secrets.
-6. Configure Vercel production environment variables and prove the production deployment—not just a preview—works.
-7. Have jurisdiction-appropriate professionals review GST, invoice, scheme, consent, record-retention and customer-communication rules.
+4. Configure Razorpay **test** credentials and subscribe to `payment.captured` at `/api/payments/razorpay/webhook`; configure the separate `/api/payments/razorpay/subscription-webhook` for subscription lifecycle events and set a webhook secret. Run end-to-end tests before considering live mode.
+5. Set real INR plan prices, trial policy and entitlements in Platform Admin → Manage plans. Do not enable live billing until hosted checkout and all subscription webhook paths have been tested.
+6. Select and obtain authorised gold-rate and messaging providers before configuring any related secrets.
+7. Configure Vercel production environment variables and prove the production deployment—not just a preview—works.
+8. Have jurisdiction-appropriate professionals review GST, invoice, scheme, consent, record-retention and customer-communication rules.
 
 ## Current honest status
 
-The repo has a broad functional foundation and now includes additional CRM/consent history, refund controls, redemption UI, credit-note and manual reconciliation workflows, an auditable gold-rate provider importer/review flow, audit-log viewer, integration-readiness view and regression checks. The new SQL migrations were applied to the connected Gold Supabase project. This is **not yet a complete production SaaS**; the remaining items above are real implementation and external-configuration work, not just a checklist of credentials.
+The repo has a broad functional foundation and now includes CRM/consent history, refund controls, redemption UI, invoice-linked credit notes/returns, manual reconciliation, an auditable gold-rate provider importer/review flow, Current Gold/Sold Gold tabs linked to named customers, notification delivery worker, subscription checkout/webhook/cancellation flow, platform plan editor, audit-log viewer and regression checks. The new SQL migrations were applied to the connected Gold Supabase project. This is **not yet a complete production SaaS**; the remaining items above are real implementation and external-configuration work, not just a checklist of credentials.
