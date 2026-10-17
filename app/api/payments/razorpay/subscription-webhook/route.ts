@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
   const bodyHash = createHash("sha256").update(rawBody, "utf8").digest("hex");
   const headerEventId = request.headers.get("x-razorpay-event-id")?.trim() ?? "";
   const eventId = /^[a-zA-Z0-9_-]{1,150}$/.test(headerEventId) ? headerEventId : bodyHash;
+  let eventRowId = eventId;
 
   const inserted = await admin.from("subscription_webhook_events").insert({
     event_id: eventId, event_type: eventType || "unknown", provider_subscription_ref: subscriptionRef,
@@ -86,16 +87,18 @@ export async function POST(request: NextRequest) {
     const { data: prior, error: priorError } = await admin.from("subscription_webhook_events")
       .select("event_id,status,updated_at").or("event_id.eq." + eventId + ",body_sha256.eq." + bodyHash).limit(1).maybeSingle();
     if (priorError) return NextResponse.json({ error: "Could not inspect duplicate webhook event." }, { status: 500 });
-    if (prior?.status === "processed" || prior?.status === "ignored") {
+    if (!prior) return NextResponse.json({ error: "Duplicate webhook event row could not be resolved." }, { status: 500 });
+    eventRowId = prior.event_id;
+    if (prior.status === "processed" || prior.status === "ignored") {
       return NextResponse.json({ ok: true, duplicate: true });
     }
-    const isStaleProcessing = prior?.status === "processing" && Date.now() - new Date(prior.updated_at).getTime() > 5 * 60 * 1000;
+    const isStaleProcessing = prior.status === "processing" && Date.now() - new Date(prior.updated_at).getTime() > 5 * 60 * 1000;
     if (prior?.status === "processing" && !isStaleProcessing) {
       return NextResponse.json({ ok: true, duplicate: true, processing: true }, { status: 202 });
     }
     const { error: retryError } = await admin.from("subscription_webhook_events").update({
       status: "processing", safe_error: null, updated_at: new Date().toISOString()
-    }).eq("event_id", prior?.event_id ?? eventId);
+    }).eq("event_id", eventRowId);
     if (retryError) return NextResponse.json({ error: "Could not resume webhook processing." }, { status: 500 });
   }
 
@@ -104,7 +107,7 @@ export async function POST(request: NextRequest) {
     await admin.from("subscription_webhook_events").update({
       status: "ignored", safe_error: subscriptionRef ? "Unsupported subscription event." : "No subscription reference in event.",
       processed_at: new Date().toISOString(), updated_at: new Date().toISOString()
-    }).eq("event_id", eventId);
+    }).eq("event_id", eventRowId);
     return NextResponse.json({ ok: true, ignored: true });
   }
 
@@ -133,7 +136,7 @@ export async function POST(request: NextRequest) {
   await admin.from("subscription_webhook_events").update({
     status: finalStatus, safe_error: subscriptionId ? null : "No local subscription matched this provider subscription reference.",
     processed_at: new Date().toISOString(), updated_at: new Date().toISOString()
-  }).eq("event_id", eventId);
+  }).eq("event_id", eventRowId);
   return NextResponse.json({ ok: true, status: finalStatus });
 }
 
