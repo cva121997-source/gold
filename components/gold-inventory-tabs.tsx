@@ -9,7 +9,7 @@ type Metal = { id:number; code:string; name:string };
 type Purity = { id:number; metal_id:number; code:string; label:string; fineness:number };
 type Branch = { id:string; name:string; branch_code:string };
 type Product = { id:string; tenant_id:string; product_code:string; name:string; metal_id:number|null; purity_id:number|null; gross_weight_grams:number; net_metal_weight_grams:number; stone_weight_grams:number; huid:string|null; barcode:string|null; };
-type Item = { id:string; tenant_id:string; branch_id:string|null; product_id:string; item_code:string; status:string; current_valuation:number|null; created_at:string };
+type Item = { id:string; tenant_id:string; branch_id:string|null; product_id:string; item_code:string; status:string; current_valuation:number|null; created_at:string; barcode?:string|null; huid?:string|null; purity_id?:number|null; gross_weight_grams?:number|null; net_metal_weight_grams?:number|null; stone_weight_grams?:number|null };
 type Invoice = { id:string; invoice_number:string; status:string; invoice_date:string; customer_id:string|null; branch_id:string|null; total_amount:number; amount_paid:number; customer_snapshot:Record<string,unknown> };
 type InvoiceLine = { id:string; tenant_id:string; invoice_id:string; inventory_item_id:string|null; line_number:number; description:string; quantity:number; gross_weight_grams:number; net_metal_weight_grams:number; purity_label:string|null; rate_per_gram:number|null; line_total:number; tax_amount:number; item_snapshot:Record<string,unknown> };
 type Customer = { id:string; full_name:string; customer_code:string; mobile_e164:string };
@@ -61,7 +61,7 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
   const goldMetalIds=useMemo(()=>new Set(metals.filter((metal)=>metal.code.trim().toLowerCase()==="gold"||metal.code.trim().toLowerCase()==="au"||metal.name.toLowerCase().includes("gold")).map((metal)=>metal.id)),[metals]);
   const currentItems=useMemo(()=>items.filter((item)=>["in_stock","reserved","repair"].includes(item.status))
     .filter((item)=>{const product=productMap.get(item.product_id);return Boolean(product&&product.metal_id!==null&&goldMetalIds.has(product.metal_id));}),[items,productMap,goldMetalIds]);
-  const currentWeight=currentItems.reduce((sum,item)=>sum+Number(productMap.get(item.product_id)?.net_metal_weight_grams??0),0);
+  const currentWeight=currentItems.reduce((sum,item)=>sum+Number(item.net_metal_weight_grams??productMap.get(item.product_id)?.net_metal_weight_grams??0),0);
   const currentValue=currentItems.reduce((sum,item)=>sum+Number(item.current_valuation??0),0);
   const currentCountByStatus={in_stock:currentItems.filter(x=>x.status==="in_stock").length,reserved:currentItems.filter(x=>x.status==="reserved").length,repair:currentItems.filter(x=>x.status==="repair").length};
 
@@ -160,7 +160,7 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
     return currentItems.filter(item=>{
       const product=productMap.get(item.product_id);
       if(invoiceStatus!=="all"&&item.status!==invoiceStatus)return false;
-      return !term||[product?.name,product?.product_code,item.item_code,product?.huid,product?.barcode,branchMap.get(item.branch_id??"")].some(v=>String(v??"").toLowerCase().includes(term));
+      return !term||[product?.name,product?.product_code,item.item_code,item.huid,product?.huid,item.barcode,product?.barcode,branchMap.get(item.branch_id??"")].some(v=>String(v??"").toLowerCase().includes(term));
     });
   },[currentItems,productMap,search,invoiceStatus,branchMap]);
   const filteredSold=useMemo(()=>{
@@ -174,8 +174,8 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
       ["Item code","Product","Status","Branch","Purity","HUID","Gross grams","Net metal grams","Valuation INR","Acquired"],
       ...filteredCurrent.map(item=>{const product=productMap.get(item.product_id);return [
         item.item_code,product?.name,item.status,branchMap.get(item.branch_id??"")??"Unassigned",
-        product?.purity_id?purityMap.get(product.purity_id):"",product?.huid,product?.gross_weight_grams,
-        product?.net_metal_weight_grams,item.current_valuation,item.created_at
+        item.purity_id?purityMap.get(item.purity_id):product?.purity_id?purityMap.get(product.purity_id):"",item.huid??product?.huid,
+        item.gross_weight_grams??product?.gross_weight_grams,item.net_metal_weight_grams??product?.net_metal_weight_grams,item.current_valuation,item.created_at
       ];})
     ]);
   }
@@ -219,10 +219,10 @@ export default function GoldInventoryTabs({tenantId,activeTab,onTabChange,produc
       {filteredCurrent.length===0?<p className="small muted">No current gold items match this filter.</p>:<div style={{display:"grid",gap:10}}>
         {filteredCurrent.map(item=>{const product=productMap.get(item.product_id);return <article key={item.id} className="list-card" style={{alignItems:"flex-start",flexWrap:"wrap",minWidth:0}}>
           <div style={{minWidth:0,flex:"1 1 250px"}}><strong>{product?.name??"Product"}</strong><div className="small muted" style={{marginTop:4}}>Item {item.item_code} · Product {product?.product_code??"—"}</div>
-            <div className="small muted" style={{marginTop:4}}>{product?.purity_id?purityMap.get(product.purity_id):"Purity not set"} · {product?.metal_id?metalMap.get(product.metal_id):"Metal not set"} · HUID {product?.huid||"—"}</div>
+            <div className="small muted" style={{marginTop:4}}>{item.purity_id?purityMap.get(item.purity_id):product?.purity_id?purityMap.get(product.purity_id):"Purity not set"} · {product?.metal_id?metalMap.get(product.metal_id):"Metal not set"} · HUID {item.huid||product?.huid||"—"} · Barcode {item.barcode||product?.barcode||"—"}</div>
             <div className="small muted" style={{marginTop:4}}>Branch: {branchMap.get(item.branch_id??"")??"Unassigned"} · Added {new Date(item.created_at).toLocaleDateString("en-IN")}</div>
           </div>
-          <div style={{textAlign:"right"}}><strong>{grams(Number(product?.net_metal_weight_grams??0))} g</strong><div className="small muted">net metal</div><div style={{marginTop:8,fontWeight:750}}>{money(Number(item.current_valuation??0))}</div><span className={"pill "+(item.status==="in_stock"?"pill-green":"pill-demo")}>{item.status.replaceAll("_"," ")}</span></div>
+          <div style={{textAlign:"right"}}><strong>{grams(Number(item.net_metal_weight_grams??product?.net_metal_weight_grams??0))} g</strong><div className="small muted">net metal · gross {grams(Number(item.gross_weight_grams??product?.gross_weight_grams??0))} g</div><div style={{marginTop:8,fontWeight:750}}>{money(Number(item.current_valuation??0))}</div><span className={"pill "+(item.status==="in_stock"?"pill-green":"pill-demo")}>{item.status.replaceAll("_"," ")}</span></div>
         </article>;})}
       </div>}
     </section>}
