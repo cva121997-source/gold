@@ -48,6 +48,7 @@ export default function LoginPage() {
       </form>
       <div className="action-row" style={{marginTop:16}}>
         <Link className="link-text small" href="/activate">Activate customer account</Link>
+        <Link className="link-text small" href="/platform-admin">Platform administrator</Link>
         <Link className="link-text small" href="/recover">Forgot password?</Link>
       </div>
       <div className="notice" style={{ marginTop: 18 }}><LockKeyhole size={15} style={{ flexShrink: 0, marginTop: 1 }} /><span>This page never stores passwords in the application database. Configure and test phone/password sign-in in Supabase Auth before production use.</span></div>

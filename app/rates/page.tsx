@@ -22,6 +22,7 @@ export default function RatesPage() {
   const [purityId, setPurityId] = useState("");
   const [price, setPrice] = useState("");
   const [publicOnBoard, setPublicOnBoard] = useState(false);
+  const [publicOnBoard, setPublicOnBoard] = useState(false);
   const [stateName, setStateName] = useState("Tamil Nadu");
   const [district, setDistrict] = useState("");
   const [city, setCity] = useState("");
@@ -95,7 +96,7 @@ export default function RatesPage() {
         tenant_id: tenantId, branch_id: memberships.find((m) => m.tenant_id === tenantId)?.branch_id ?? null, metal_id: Number(metalId), purity_id: Number(purityId),
         price_per_gram: Number(Number(price).toFixed(2)), state: stateName.trim() || null,
         district: district.trim() || null, city: city.trim() || null, locality: locality.trim() || null,
-        source_type: "manual", source_label: "Manual rate entered by shop staff", status: "verified", is_public: publicOnBoard,
+        source_type: "manual", source_label: "Manual rate entered by shop staff", status: "verified", is_public: publicOnBoard, is_public: publicOnBoard,
         effective_at: new Date().toISOString(), updated_by: user.id
       });
       if (insertError) { setError("Rate not saved. Only shop owners and managers can publish rates; check the selected shop permissions."); return; }
@@ -139,7 +140,7 @@ export default function RatesPage() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}><div><h2>Recent rate history</h2><p className="small muted">Newest first · India Standard Time</p></div><button type="button" className="btn btn-secondary" onClick={() => void loadRates()}><RefreshCw size={14} /> Refresh</button></div>
         {rates.length === 0 ? <p className="muted small">No rates have been entered for this shop yet.</p> : <div style={{ display: "grid", gap: 10 }}>{rates.map((rate) => <article className="list-card" key={rate.id} style={{ alignItems: "flex-start" }}>
           <div style={{ minWidth: 0 }}><strong>{labelFor(rate)}</strong><div style={{ marginTop: 5, fontSize: 20, fontWeight: 750 }}>{money(Number(rate.price_per_gram))}<span className="small muted"> / gram</span></div><div className="small muted" style={{ marginTop: 4 }}>{[rate.locality, rate.city, rate.district, rate.state].filter(Boolean).join(", ") || "No locality saved"}</div><div className="small muted" style={{ marginTop: 4 }}><Clock3 size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {new Date(rate.effective_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</div></div>
-          <div style={{display:"grid",gap:5,justifyItems:"end"}}><span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>{rate.is_public&&<span className="pill pill-green">public</span>}</div>
+          <div style={{display:"grid",gap:5,justifyItems:"end"}}><div style={{display:"grid",gap:5,justifyItems:"end"}}><span className={"pill " + (rate.status === "verified" ? "pill-green" : "pill-demo")}>{rate.status}</span>{rate.is_public&&<span className="pill pill-green">public</span>}</div>{rate.is_public&&<span className="pill pill-green">public</span>}</div>
         </article>)}</div>}
       </section>
     </div>}
