@@ -174,6 +174,59 @@ create table if not exists public.scheme_redemptions (
  foreign key (tenant_id,benefit_id) references public.scheme_benefits(tenant_id,id)
 );
 
+create table if not exists public.sales (
+ id uuid primary key default gen_random_uuid(),
+ tenant_id uuid not null references public.tenants(id) on delete cascade,
+ branch_id uuid,
+ customer_id uuid,
+ sale_number text not null,
+ status text not null default 'draft' check (status in ('draft','completed','void','returned')),
+ subtotal numeric(14,2) not null default 0,
+ discount_amount numeric(14,2) not null default 0,
+ tax_amount numeric(14,2) not null default 0,
+ total_amount numeric(14,2) not null default 0,
+ currency text not null default 'INR',
+ rate_snapshot jsonb not null default '{}'::jsonb,
+ tax_snapshot jsonb not null default '{}'::jsonb,
+ created_by uuid references auth.users(id) on delete set null,
+ completed_at timestamptz,
+ created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+ unique (tenant_id,sale_number), unique (tenant_id,id),
+ foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
+ foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id)
+);
+
+create table if not exists public.invoices (
+ id uuid primary key default gen_random_uuid(),
+ tenant_id uuid not null references public.tenants(id) on delete cascade,
+ branch_id uuid,
+ sale_id uuid,
+ customer_id uuid,
+ invoice_number text not null,
+ status text not null default 'draft' check (status in ('draft','issued','partially_paid','paid','void','credited')),
+ invoice_date date not null default current_date,
+ due_date date,
+ subtotal numeric(14,2) not null default 0,
+ discount_amount numeric(14,2) not null default 0,
+ taxable_amount numeric(14,2) not null default 0,
+ cgst_amount numeric(14,2) not null default 0,
+ sgst_amount numeric(14,2) not null default 0,
+ igst_amount numeric(14,2) not null default 0,
+ total_amount numeric(14,2) not null default 0,
+ amount_paid numeric(14,2) not null default 0,
+ tax_snapshot jsonb not null default '{}'::jsonb,
+ rate_snapshot jsonb not null default '{}'::jsonb,
+ customer_snapshot jsonb not null default '{}'::jsonb,
+ issued_at timestamptz,
+ created_by uuid references auth.users(id) on delete set null,
+ created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
+ unique (tenant_id,invoice_number), unique (tenant_id,id),
+ foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
+ foreign key (tenant_id,sale_id) references public.sales(tenant_id,id),
+ foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id),
+ check (amount_paid <= total_amount)
+);
+
 create table if not exists public.payment_orders (
  id uuid primary key default gen_random_uuid(),
  tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -387,27 +440,6 @@ create table if not exists public.inventory_movements (
 );
 create index if not exists inventory_movements_item_idx on public.inventory_movements(tenant_id,inventory_item_id,created_at desc);
 
-create table if not exists public.sales (
- id uuid primary key default gen_random_uuid(),
- tenant_id uuid not null references public.tenants(id) on delete cascade,
- branch_id uuid,
- customer_id uuid,
- sale_number text not null,
- status text not null default 'draft' check (status in ('draft','completed','void','returned')),
- subtotal numeric(14,2) not null default 0,
- discount_amount numeric(14,2) not null default 0,
- tax_amount numeric(14,2) not null default 0,
- total_amount numeric(14,2) not null default 0,
- currency text not null default 'INR',
- rate_snapshot jsonb not null default '{}'::jsonb,
- tax_snapshot jsonb not null default '{}'::jsonb,
- created_by uuid references auth.users(id) on delete set null,
- completed_at timestamptz,
- created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
- unique (tenant_id,sale_number), unique (tenant_id,id),
- foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
- foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id)
-);
 create table if not exists public.sale_items (
  id uuid primary key default gen_random_uuid(),
  tenant_id uuid not null references public.tenants(id) on delete cascade,
@@ -430,36 +462,6 @@ create table if not exists public.sale_items (
  foreign key (tenant_id,inventory_item_id) references public.inventory_items(tenant_id,id)
 );
 
-create table if not exists public.invoices (
- id uuid primary key default gen_random_uuid(),
- tenant_id uuid not null references public.tenants(id) on delete cascade,
- branch_id uuid,
- sale_id uuid,
- customer_id uuid,
- invoice_number text not null,
- status text not null default 'draft' check (status in ('draft','issued','partially_paid','paid','void','credited')),
- invoice_date date not null default current_date,
- due_date date,
- subtotal numeric(14,2) not null default 0,
- discount_amount numeric(14,2) not null default 0,
- taxable_amount numeric(14,2) not null default 0,
- cgst_amount numeric(14,2) not null default 0,
- sgst_amount numeric(14,2) not null default 0,
- igst_amount numeric(14,2) not null default 0,
- total_amount numeric(14,2) not null default 0,
- amount_paid numeric(14,2) not null default 0,
- tax_snapshot jsonb not null default '{}'::jsonb,
- rate_snapshot jsonb not null default '{}'::jsonb,
- customer_snapshot jsonb not null default '{}'::jsonb,
- issued_at timestamptz,
- created_by uuid references auth.users(id) on delete set null,
- created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
- unique (tenant_id,invoice_number), unique (tenant_id,id),
- foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
- foreign key (tenant_id,sale_id) references public.sales(tenant_id,id),
- foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id),
- check (amount_paid <= total_amount)
-);
 create table if not exists public.invoice_lines (
  id uuid primary key default gen_random_uuid(),
  tenant_id uuid not null references public.tenants(id) on delete cascade,
