@@ -44,7 +44,7 @@ async function refresh(request: NextRequest) {
   const provided = authorization.replace(/^Bearer\s+/i, "").trim();
   const authorised = secrets.some((secret) => {
     const a = Buffer.from(provided); const b = Buffer.from(secret);
-    return a.length > 0 && a.length === b.length && require("node:crypto").timingSafeEqual(a, b);
+    return a.length > 0 && a.length === b.length && timingSafeEqual(a, b);
   });
   if (!authorised) return NextResponse.json({ error: "Unauthorized rate refresh request." }, { status: 401 });
 
