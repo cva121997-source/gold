@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true, duplicate: true });
     }
     const isStaleProcessing = prior.status === "processing" && Date.now() - new Date(prior.updated_at).getTime() > 5 * 60 * 1000;
-    if (prior?.status === "processing" && !isStaleProcessing) {
+    if (prior.status === "processing" && !isStaleProcessing) {
       return NextResponse.json({ ok: true, duplicate: true, processing: true }, { status: 202 });
     }
     const { error: retryError } = await admin.from("subscription_webhook_events").update({
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
     await admin.from("subscription_webhook_events").update({
       status: "failed", safe_error: "Database subscription state processor failed.",
       updated_at: new Date().toISOString()
-    }).eq("event_id", eventId);
+    }).eq("event_id", eventRowId);
     return NextResponse.json({ error: "Could not apply subscription event; provider may retry." }, { status: 500 });
   }
 
