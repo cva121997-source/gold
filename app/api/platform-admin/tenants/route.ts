@@ -37,11 +37,18 @@ export async function PATCH(request: NextRequest) {
   if (!before) return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
   const { data, error } = await context.admin.from("tenants").update({ status, updated_at: new Date().toISOString() }).eq("id", tenantId).select("id,status,display_name").single();
   if (error) return NextResponse.json({ error: "Tenant status could not be updated." }, { status: 500 });
-  const { error: auditError } = await context.admin.from("audit_logs").insert({
-    tenant_id: tenantId, actor_user_id: context.user.id, event_name: "platform.tenant_status_changed",
-    entity_type: "tenant", entity_id: tenantId, details: { old_status: before.status, new_status: status, actor_role: context.adminRole }
-  });
-  if (auditError) return NextResponse.json({ tenant: data, warning: "Status changed, but the platform audit record could not be written. Review database service logs." }, { status: 207 });
+  const [tenantAudit, platformAudit] = await Promise.all([
+    context.admin.from("audit_logs").insert({
+      tenant_id: tenantId, actor_user_id: context.user.id, event_name: "platform.tenant_status_changed",
+      entity_type: "tenant", entity_id: tenantId, details: { old_status: before.status, new_status: status, actor_role: context.adminRole }
+    }),
+    context.admin.from("platform_audit_logs").insert({
+      actor_user_id: context.user.id, event_name: "platform.tenant_status_changed",
+      entity_type: "tenant", entity_id: tenantId,
+      details: { tenant_name: before.display_name, old_status: before.status, new_status: status, actor_role: context.adminRole }
+    })
+  ]);
+  if (tenantAudit.error || platformAudit.error) return NextResponse.json({ tenant: data, warning: "Status changed, but one of the audit records could not be written. Review database service logs." }, { status: 207 });
   return NextResponse.json({ tenant: data });
 }
 
@@ -81,5 +88,13 @@ export async function POST(request: NextRequest) {
     await context.admin.auth.admin.deleteUser(ownerUserId);
     return NextResponse.json({ error: "Owner invite was issued but shop onboarding failed; the unaccepted invite was cleaned up.", detail: createError?.message ?? "Database onboarding did not return a tenant ID." }, { status: 500 });
   }
-  return NextResponse.json({ tenantId, ownerInvited: true, message: "Shop created and owner invitation sent. The owner must accept the email invite and finish login/setup." }, { status: 201 });
+  const { error: platformAuditError } = await context.admin.from("platform_audit_logs").insert({
+    actor_user_id: context.user.id, event_name: "platform.tenant_created", entity_type: "tenant", entity_id: String(tenantId),
+    details: { display_name: shopName, slug, owner_invitation_sent: true, actor_role: context.adminRole }
+  });
+  return NextResponse.json({
+    tenantId, ownerInvited: true,
+    message: "Shop created and owner invitation sent. The owner must accept the email invite and finish login/setup.",
+    warning: platformAuditError ? "Shop was created but the platform audit row failed; check Supabase logs." : undefined
+  }, { status: 201 });
 }
