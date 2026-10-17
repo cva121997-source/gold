@@ -204,12 +204,12 @@ async function processOne(admin: ReturnType<typeof adminClient>, row: Notificati
       target = emailAddress(destination);
       if (!target) throw new Error("Recipient email address is invalid or missing.");
       const subject = interpolate(template.subject || "A message from your jewellery shop", row.safe_payload ?? {}, customer ?? undefined);
-      const body = interpolate(template.body, row.safe_payload ?? {}, customer);
+      const body = interpolate(template.body, row.safe_payload ?? {}, customer ?? undefined);
       messageRef = await sendEmail(target, subject, body);
     } else if (row.channel === "sms") {
       target = e164(destination);
       if (!target) throw new Error("SMS recipient must be a valid E.164 phone number.");
-      const body = interpolate(template.body, row.safe_payload ?? {}, customer);
+      const body = interpolate(template.body, row.safe_payload ?? {}, customer ?? undefined);
       messageRef = await sendSms(target, body);
     } else if (row.channel === "whatsapp") {
       target = e164(destination);
