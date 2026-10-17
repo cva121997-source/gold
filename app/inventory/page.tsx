@@ -12,7 +12,7 @@ type Metal={id:number;code:string;name:string};
 type Purity={id:number;metal_id:number;code:string;label:string;fineness:number};
 type Branch={id:string;name:string;branch_code:string};
 type Product={id:string;tenant_id:string;product_code:string;name:string;metal_id:number|null;purity_id:number|null;gross_weight_grams:number;net_metal_weight_grams:number;stone_weight_grams:number;barcode:string|null;huid:string|null};
-type Item={id:string;tenant_id:string;branch_id:string|null;product_id:string;item_code:string;status:string;current_valuation:number|null;created_at:string};
+type Item={id:string;tenant_id:string;branch_id:string|null;product_id:string;item_code:string;status:string;current_valuation:number|null;created_at:string;barcode:string|null;huid:string|null;purity_id:number|null;gross_weight_grams:number|null;net_metal_weight_grams:number|null;stone_weight_grams:number|null};
 type Movement={id:string;inventory_item_id:string|null;movement_type:string;reason:string|null;reference:string|null;created_at:string};
 
 export default function InventoryPage(){
@@ -33,7 +33,7 @@ export default function InventoryPage(){
  }catch{if(active)setError("Could not load inventory data. Apply the Gold migrations and check database access.");}finally{if(active)setLoading(false)}})();return()=>{active=false}},[router]);
  const load=useCallback(async()=>{if(!tenantId){setProducts([]);setItems([]);setMovements([]);return;}const supabase=createClient();const [p,i,m,b]=await Promise.all([
   supabase.from("products").select("id,tenant_id,product_code,name,metal_id,purity_id,gross_weight_grams,net_metal_weight_grams,stone_weight_grams,barcode,huid").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(500),
-  supabase.from("inventory_items").select("id,tenant_id,branch_id,product_id,item_code,status,current_valuation,created_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(500),
+  supabase.from("inventory_items").select("id,tenant_id,branch_id,product_id,item_code,status,current_valuation,created_at,barcode,huid,purity_id,gross_weight_grams,net_metal_weight_grams,stone_weight_grams").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(500),
   supabase.from("inventory_movements").select("id,inventory_item_id,movement_type,reason,reference,created_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(30),
   supabase.from("branches").select("id,name,branch_code").eq("tenant_id",tenantId).eq("is_active",true).order("name")
  ]);
