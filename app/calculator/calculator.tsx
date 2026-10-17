@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { Info, RotateCcw } from "lucide-react";
+import { calculateJewelleryQuote } from "@/lib/gold-calculation.js";
 
 type MakingMode = "percent" | "fixed" | "perGram";
 const inr = (amount: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number.isFinite(amount) ? amount : 0);
@@ -19,43 +20,9 @@ export default function GoldCalculator() {
   const [gstPercent, setGstPercent] = useState("3");
   const [budget, setBudget] = useState("156140");
 
-  const values = useMemo(() => {
-    const gramRate = parsePositive(rate), grams = parsePositive(weight), makingInputValue = parsePositive(makingInput);
-    const goldValue = gramRate * grams;
-    const making = makingMode === "percent" ? goldValue * makingInputValue / 100 : makingMode === "perGram" ? makingInputValue * grams : makingInputValue;
-    const wastage = goldValue * parsePositive(wastagePercent) / 100;
-    const other = parsePositive(otherCharges);
-    const discountValue = Math.min(parsePositive(discount), goldValue + making + wastage + other);
-    const taxableSubtotal = Math.max(0, goldValue + making + wastage + other - discountValue);
-    const gst = gstEnabled ? Math.round(taxableSubtotal * parsePositive(gstPercent) / 100) : 0;
-    const total = Math.round((taxableSubtotal + gst) * 100) / 100;
-
-    // Use the same forward formula for the inverse budget estimate, including capped discount and rounded GST.
-    const targetBudget = parsePositive(budget);
-    const costForWeight = (grams: number) => {
-      const baseGold = gramRate * grams;
-      const baseMaking = makingMode === "percent"
-        ? baseGold * makingInputValue / 100
-        : makingMode === "perGram"
-          ? makingInputValue * grams
-          : makingInputValue;
-      const baseWastage = baseGold * parsePositive(wastagePercent) / 100;
-      const rawSubtotal = baseGold + baseMaking + baseWastage + other;
-      const appliedDiscount = Math.min(parsePositive(discount), rawSubtotal);
-      const subtotal = Math.max(0, rawSubtotal - appliedDiscount);
-      const tax = gstEnabled ? Math.round(subtotal * parsePositive(gstPercent) / 100) : 0;
-      return subtotal + tax;
-    };
-    let low = 0;
-    let high = Math.max((targetBudget / Math.max(gramRate, 1)) * 2 + 1, 1);
-    for (let i = 0; i < 60; i += 1) {
-      const middle = (low + high) / 2;
-      if (costForWeight(middle) <= targetBudget) low = middle;
-      else high = middle;
-    }
-    const budgetGrams = targetBudget > 0 && gramRate > 0 ? low : 0;
-    return { goldValue, making, wastage, other, discount: discountValue, taxableSubtotal, gst, total, budgetGrams };
-  }, [rate, weight, makingMode, makingInput, wastagePercent, otherCharges, discount, gstEnabled, gstPercent, budget]);
+  const values = useMemo(() => calculateJewelleryQuote({
+    rate, weight, makingMode, makingInput, wastagePercent, otherCharges, discount, gstEnabled, gstPercent, budget
+  }), [rate, weight, makingMode, makingInput, wastagePercent, otherCharges, discount, gstEnabled, gstPercent, budget]);
 
   function reset() {
     setPurity("22K · 916"); setRate("13535"); setWeight("10"); setMakingMode("percent"); setMakingInput("12");
@@ -102,7 +69,7 @@ export default function GoldCalculator() {
         <h3 style={{ marginBottom: 5 }}>Budget to gold weight</h3><p className="small muted">Estimate the grams affordable at the selected rate and charges.</p>
         <div className="field"><label htmlFor="budget">Your budget (₹)</label><input id="budget" type="number" min="0" step="1" value={budget} onChange={(e) => setBudget(e.target.value)} /></div>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginTop: 14 }}><span className="small muted">Estimated net weight</span><strong style={{ color: "#1f5c3e", fontSize: 23 }}>{values.budgetGrams.toLocaleString("en-IN", { maximumFractionDigits: 3 })} g</strong></div>
-        <p className="small muted" style={{ margin: "7px 0 0" }}>The reverse estimate uses the same rate, making, wastage and tax settings. Discounts are omitted because eligibility may depend on the actual transaction.</p>
+        <p className="small muted" style={{ margin: "7px 0 0" }}>The reverse estimate uses the same rate, making, wastage, other-charge, discount and tax settings. Treat discounts as estimates until the shop confirms eligibility.</p>
       </div>
     </aside>
   </div>;
