@@ -29,6 +29,7 @@ begin
  where tenant_id=p_tenant_id and effective_from<=current_date and (effective_until is null or effective_until>=current_date)
  order by effective_from desc,created_at desc limit 1;
  if not found then raise exception 'No effective tax configuration exists for this shop. Add and review a tax profile before issuing an invoice';end if;
+ if v_config.approved_at is null then raise exception 'Tax profile is not owner-approved. Review the tax configuration before issuing an invoice';end if;
  if v_interstate then
    v_cgst_rate:=0;v_sgst_rate:=0;v_igst_rate:=v_config.inter_state_igst_percent;
  else
