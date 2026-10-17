@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calculator, CircleUserRound, Coins, LayoutDashboard } from "lucide-react";
+import { Calculator, CircleUserRound, Coins, LayoutDashboard, Users, WalletCards } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -23,6 +23,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/" className="nav-link"><LayoutDashboard size={16} /> Overview</Link>
               <Link href="/calculator" className="nav-link"><Calculator size={16} /> Calculator</Link>
               <Link href="/rates" className="nav-link"><Coins size={16} /> Rates</Link>
+              <Link href="/customers" className="nav-link"><Users size={16} /> Customers</Link>
+              <Link href="/schemes" className="nav-link"><WalletCards size={16} /> Schemes</Link>
             </nav>
             <Link href="/login" className="account-link"><CircleUserRound size={17} /> Sign in</Link>
           </header>
