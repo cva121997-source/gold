@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck, Calculator, Coins, Users, WalletCards, ClipboardList, Receipt, Boxes, BarChart3, Settings2, Bell, UserCog, CreditCard, Gem, ShoppingCart, ClipboardCheck } from "lucide-react";
+import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck, Calculator, Coins, Users, WalletCards, ClipboardList, Receipt, Boxes, BarChart3, Settings2, Bell, UserCog, CreditCard, Gem, ShoppingCart, ClipboardCheck, Scale } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./signout";
 
@@ -45,6 +45,7 @@ export default async function DashboardPage() {
           { href: "/inventory", icon: Boxes, title: "Inventory", detail: "Stock register and movement history" },
           { href: "/purchasing", icon: ShoppingCart, title: "Purchasing", detail: "Suppliers, purchase orders and goods receipts" },
           { href: "/stocktakes", icon: ClipboardCheck, title: "Stock reconciliation", detail: "Physical stock counts and discrepancy review" },
+          { href: "/inventory-controls", icon: Scale, title: "Stock alerts & valuation", detail: "Reorder thresholds and valuation audit trail" },
           { href: "/old-gold", icon: Gem, title: "Old-gold exchange", detail: "Indicative valuation and review" },
           { href: "/orders", icon: ClipboardList, title: "Orders & repairs", detail: "Customer items and job tracking" },
           { href: "/reports", icon: BarChart3, title: "Reports", detail: "Current totals and CSV exports" },
