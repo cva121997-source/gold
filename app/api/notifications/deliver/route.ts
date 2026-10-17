@@ -238,9 +238,12 @@ async function processOne(admin: ReturnType<typeof adminClient>, row: Notificati
 }
 
 async function run(request: NextRequest) {
-  const expected = process.env.CRON_SECRET?.trim() || process.env.NOTIFICATION_DELIVERY_SECRET?.trim();
-  const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!expected || !sameSecret(provided, expected)) return NextResponse.json({ error: "Unauthorized notification worker request." }, { status: 401 });
+  const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  const secrets = [process.env.CRON_SECRET, process.env.NOTIFICATION_DELIVERY_SECRET]
+    .map((value) => value?.trim()).filter((value): value is string => Boolean(value));
+  if (!secrets.some((expected) => sameSecret(provided, expected))) {
+    return NextResponse.json({ error: "Unauthorized notification worker request." }, { status: 401 });
+  }
   let admin: ReturnType<typeof adminClient>;
   try { admin = adminClient(); } catch { return NextResponse.json({ error: "Server database configuration is missing." }, { status: 503 }); }
   const { data, error } = await admin.rpc("claim_notification_batch", { p_limit: 50 });
