@@ -22,6 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <nav className="topnav" aria-label="Main navigation">
               <Link href="/" className="nav-link"><LayoutDashboard size={16} /> Overview</Link>
               <Link href="/calculator" className="nav-link"><Calculator size={16} /> Calculator</Link>
+              <Link href="/rates" className="nav-link"><Coins size={16} /> Rates</Link>
             </nav>
             <Link href="/login" className="account-link"><CircleUserRound size={17} /> Sign in</Link>
           </header>
