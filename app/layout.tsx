@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Calculator, CircleUserRound, Coins, LayoutDashboard, Users, WalletCards } from "lucide-react";
+import { Calculator, CircleUserRound, Coins, LayoutDashboard, Users, WalletCards, Receipt, Boxes, ClipboardList, BarChart3, UserCog, Settings, RefreshCw } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,6 +25,16 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/rates" className="nav-link"><Coins size={16} /> Rates</Link>
               <Link href="/customers" className="nav-link"><Users size={16} /> Customers</Link>
               <Link href="/schemes" className="nav-link"><WalletCards size={16} /> Schemes</Link>
+              <Link href="/enrolments" className="nav-link"><ClipboardList size={16} /> Enrolments</Link>
+              <Link href="/collections" className="nav-link"><Receipt size={16} /> Collections</Link>
+              <Link href="/pos" className="nav-link"><Receipt size={16} /> POS</Link>
+              <Link href="/inventory" className="nav-link"><Boxes size={16} /> Inventory</Link>
+              <Link href="/orders" className="nav-link"><ClipboardList size={16} /> Orders & repairs</Link>
+              <Link href="/old-gold" className="nav-link"><Coins size={16} /> Old gold</Link>
+              <Link href="/reports" className="nav-link"><BarChart3 size={16} /> Reports</Link>
+              <Link href="/employees" className="nav-link"><UserCog size={16} /> Employees</Link>
+              <Link href="/settings" className="nav-link"><Settings size={16} /> Settings</Link>
+              <Link href="/subscription" className="nav-link"><RefreshCw size={16} /> Plan</Link>
             </nav>
             <Link href="/login" className="account-link"><CircleUserRound size={17} /> Sign in</Link>
           </header>
