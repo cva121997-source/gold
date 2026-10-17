@@ -38,12 +38,14 @@ test("shop subscription endpoint checks active owner before trial or provider ch
   assert.match(createSubscription, /\/subscriptions/);
   assert.match(createSubscription, /status: "pending"/);
   assert.match(createSubscription, /checkoutRequired: true/);
-  assert.match(createSubscription, /Razorpay plan resources are immutable/i);
+  assert.match(createSubscription, /provider_monthly_plan_ref/);
+  assert.match(createSubscription, /provider_annual_plan_ref/);
+  assert.match(createSubscription, /providerPlanRef/);
 });
 
 test("subscription webhook validates raw body signature and deduplicates event IDs", () => {
   assert.match(subscriptionWebhook, /x-razorpay-signature/);
-  assert.match(subscriptionWebhook, /createHmac\("sha256"\)/);
+  assert.match(subscriptionWebhook, /createHmac\("sha256", secret\)/);
   assert.match(subscriptionWebhook, /request\.text\(\)/);
   assert.match(subscriptionWebhook, /x-razorpay-event-id/);
   assert.match(subscriptionWebhook, /subscription_webhook_events/);
