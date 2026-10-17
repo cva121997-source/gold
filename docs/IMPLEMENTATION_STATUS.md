@@ -13,7 +13,14 @@ Updated: 2026-10-17
 - Additive scheme workflow migration that restricts direct template/version writes so publishing uses the audited RPC.
 - Interactive gold estimate calculator: 24K, 22K and 18K presets; weight; rate per gram; percentage, fixed and per-gram making charge modes; wastage; other charges; discount; GST estimate; calculation breakdown; approximate budget-to-weight.
 - Supabase SSR browser/server clients and session refresh middleware.
-- Phone/password sign-in using Supabase Auth; Supabase phone/password settings still need configuration and end-to-end testing.
+- Phone/password sign-in using Supabase Auth and verified-mobile customer self-linking by shop slug; Supabase phone/password/verification settings still require configuration and end-to-end testing.
+- Customer portal showing the authenticated customer's linked shops, savings schemes, confirmed payment history, instalment schedule and receipts.
+- Staff invitation management with hashed single-use invitation tokens, verified email/phone matching on acceptance, and audited access deactivation/reactivation.
+- Shop settings for profile, branch locations, preferred language and effective-dated tax profiles.
+- Subscription/trial overview and feature entitlement display (plan changes await payment-provider integration).
+- In-app notification queue and delivery status display (external SMS/WhatsApp/email delivery still needs providers and a worker).
+- Server-protected platform admin tenant list, status control and owner-invitation onboarding API; service key and initial administrator must be configured server-side.
+- POS draft invoice + issue flow, inventory stock receipt and movement flow, old-gold valuation/review, customer order/repair tracking, and baseline CSV/report UI.
 - Authenticated dashboard that lists active shop memberships.
 - Initial SQL migration for tenants, branches, memberships, settings, customers, customer auth links, metals, purities, rate sources, historical gold rates, scheme drafts/versions/enrolments, append-only transaction events and audit logs.
 - RLS policies based on trusted membership and verified customer-link relationships.

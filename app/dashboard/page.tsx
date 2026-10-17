@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck } from "lucide-react";
+import { ArrowRight, Building2, CircleAlert, LogOut, ShieldCheck, Calculator, Coins, Users, WalletCards, ClipboardList, Receipt, Boxes, BarChart3, Settings2, Bell, UserCog, CreditCard, Gem } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "./signout";
 
@@ -30,6 +30,34 @@ export default async function DashboardPage() {
           <Link href="/" className="btn btn-secondary">Return to overview <ArrowRight size={15} /></Link>
         </div>
       </section>}
+    </section>
+    <section style={{ marginTop: 26 }}>
+      <div className="section-head"><div><div className="eyebrow">Workspace</div><h2 style={{ marginTop: 10 }}>Shop operations</h2></div></div>
+      <div className="feature-grid">
+        {[
+          { href: "/rates", icon: Coins, title: "Gold rates", detail: "Manual local rates and history" },
+          { href: "/calculator", icon: Calculator, title: "Calculator", detail: "Weight, charges and tax estimate" },
+          { href: "/customers", icon: Users, title: "Customers", detail: "Customer directory and profiles" },
+          { href: "/schemes", icon: WalletCards, title: "Savings schemes", detail: "Drafts and versioned terms" },
+          { href: "/enrolments", icon: ClipboardList, title: "Enrolments", detail: "Scheme members and due schedules" },
+          { href: "/collections", icon: Receipt, title: "Collections", detail: "Manual receipts and payments" },
+          { href: "/pos", icon: Receipt, title: "POS & billing", detail: "Draft and issued invoices" },
+          { href: "/inventory", icon: Boxes, title: "Inventory", detail: "Stock register and movement history" },
+          { href: "/old-gold", icon: Gem, title: "Old-gold exchange", detail: "Indicative valuation and review" },
+          { href: "/orders", icon: ClipboardList, title: "Orders & repairs", detail: "Customer items and job tracking" },
+          { href: "/reports", icon: BarChart3, title: "Reports", detail: "Current totals and CSV exports" },
+          { href: "/notifications", icon: Bell, title: "Notifications", detail: "In-app messages queue" },
+          { href: "/employees", icon: UserCog, title: "Employees", detail: "Invite staff and manage access" },
+          { href: "/settings", icon: Settings2, title: "Shop settings", detail: "Profile, branches and tax config" },
+          { href: "/subscription", icon: CreditCard, title: "Subscription", detail: "Trial and plan details" },
+          { href: "/my-account", icon: ShieldCheck, title: "Customer portal", detail: "Linked customer account view" },
+          { href: "/platform-admin", icon: Building2, title: "Platform admin", detail: "Restricted SaaS tenant management" }
+        ].map(({ href, icon: Icon, title, detail }) => (
+          <Link href={href} key={href} className="feature-card">
+            <div className="feature-icon"><Icon size={20} /></div><h3>{title}</h3><p>{detail}</p>
+          </Link>
+        ))}
+      </div>
     </section>
     <div className="notice" style={{ marginTop: 22 }}><ShieldCheck size={17} style={{ flexShrink: 0, marginTop: 1 }} /><span>Shop creation is intentionally not exposed as a direct client-side insert. The tenant onboarding RPC creates the owner membership and default branch atomically.</span></div>
   </div></main>;

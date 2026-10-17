@@ -33,6 +33,12 @@ This initial commit establishes the application foundation and the first usable 
 
 Never put a Supabase service-role key in browser-exposed environment variables or commit secrets.
 
+## Secure server configuration
+
+- `SUPABASE_SERVICE_ROLE_KEY` is required only for the server-protected platform administration API. Configure it in hosting/server environment settings only. Never commit its value or use a `NEXT_PUBLIC_` prefix.
+- Add the first platform administrator only after creating the intended user in Supabase Auth. Then insert that exact `auth.users.id` in `public.platform_admins` using the Supabase SQL Editor. The application has no self-service platform-admin registration.
+- Owner invitation emails require a working Supabase Auth email provider and the `/auth/callback` URL added to the project's allowed redirect URLs.
+
 ## Important implementation notes
 
 - Gold prices must come from a verified provider or an authorised manual shop rate. No live-price provider is assumed to be configured.

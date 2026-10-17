@@ -105,7 +105,7 @@ export default function PlatformAdminPage() {
       <form onSubmit={createShop}><div className="form-grid">
         <div className="field"><label htmlFor="shopName">Shop display name *</label><input id="shopName" value={shopName} onChange={e => changeShopName(e.target.value)} required minLength={2} maxLength={120} /></div>
         <div className="field"><label htmlFor="slug">Unique shop slug *</label><input id="slug" value={slug} onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxLength={60} /></div>
-        <div className="field"><label htmlFor="ownerName">Shop owner's name *</label><input id="ownerName" value={ownerName} onChange={e => setOwnerName(e.target.value)} required minLength={2} /></div>
+        <div className="field"><label htmlFor="ownerName">Shop owner&apos;s name *</label><input id="ownerName" value={ownerName} onChange={e => setOwnerName(e.target.value)} required minLength={2} /></div>
         <div className="field"><label htmlFor="ownerEmail">Owner email *</label><input id="ownerEmail" type="email" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} required /></div>
         <div className="field"><label htmlFor="legalName">Legal business name</label><input id="legalName" value={legalName} onChange={e => setLegalName(e.target.value)} /></div>
         <div className="field"><label htmlFor="stateName">State</label><input id="stateName" value={stateName} onChange={e => setStateName(e.target.value)} /></div>
