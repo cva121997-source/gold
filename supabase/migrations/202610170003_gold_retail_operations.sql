@@ -246,7 +246,7 @@ create table if not exists public.payment_orders (
  created_by uuid references auth.users(id) on delete set null,
  created_at timestamptz not null default now(),
  updated_at timestamptz not null default now(),
- unique (tenant_id,order_code), unique (tenant_id,idempotency_key), unique (provider,provider_order_ref),
+ unique (tenant_id,order_code), unique (tenant_id,idempotency_key), unique (tenant_id,id), unique (provider,provider_order_ref),
  foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
  foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id),
  foreign key (tenant_id,enrolment_id) references public.scheme_enrolments(tenant_id,id)
@@ -272,7 +272,7 @@ create table if not exists public.payments (
  confirmed_at timestamptz,
  metadata jsonb not null default '{}'::jsonb,
  created_at timestamptz not null default now(),
- unique (tenant_id,idempotency_key), unique (provider,provider_payment_ref),
+ unique (tenant_id,idempotency_key), unique (tenant_id,id), unique (provider,provider_payment_ref),
  foreign key (tenant_id,branch_id) references public.branches(tenant_id,id),
  foreign key (tenant_id,customer_id) references public.tenant_customers(tenant_id,id),
  foreign key (tenant_id,enrolment_id) references public.scheme_enrolments(tenant_id,id),
