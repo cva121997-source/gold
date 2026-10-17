@@ -11,7 +11,7 @@ test("stocktake missing-piece resolutions require owner/manager review and a rea
  assert.match(migration,/alter table public\.inventory_stocktake_resolutions enable row level security/i);
  assert.match(migration,/only an owner or manager can resolve stocktake discrepancies/i);
  assert.match(migration,/provide a resolution reason between 5 and 500 characters/i);
- assert.match(migration,/the item status changed during the count/i);
+ assert.match(migration,/item status changed during the count/i);
  assert.match(migration,/inventory\.stocktake_discrepancy_resolved/i);
  assert.match(migration,/private\.move_inventory_item\(p_tenant_id,v_item\.id,'write_off'/i);
  assert.match(migration,/found_after_count/i);
