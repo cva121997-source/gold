@@ -117,8 +117,8 @@ async function contactAndConsent(admin: ReturnType<typeof adminClient>, row: Not
   const hasChannelConsent = explicitPreference === true || channelConsent === true;
   const hasPromoConsent = !marketingType(row.notification_type) || promotionConsent === true;
   const consentOk = marketingType(row.notification_type)
-    ? hasChannelConsent && promotionConsent === true
-    : hasChannelConsent || (transactional && channelConsent !== false && explicitPreference !== false);
+    ? hasChannelConsent && hasPromoConsent
+    : hasChannelConsent || (transactional && channelConsent === null && explicitPreference === null);
   return {
     customer, destination, consentOk,
     consentReason: consentOk ? null : "Delivery suppressed because required channel/promotional consent is not recorded."
@@ -203,7 +203,7 @@ async function processOne(admin: ReturnType<typeof adminClient>, row: Notificati
     if (row.channel === "email") {
       target = emailAddress(destination);
       if (!target) throw new Error("Recipient email address is invalid or missing.");
-      const subject = interpolate(template.subject || "A message from your jewellery shop", row.safe_payload ?? {}, customer);
+      const subject = interpolate(template.subject || "A message from your jewellery shop", row.safe_payload ?? {}, customer ?? undefined);
       const body = interpolate(template.body, row.safe_payload ?? {}, customer);
       messageRef = await sendEmail(target, subject, body);
     } else if (row.channel === "sms") {
