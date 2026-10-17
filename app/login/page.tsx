@@ -24,7 +24,10 @@ export default function LoginPage() {
         setError("Sign-in failed. Check the mobile number and password, and confirm phone/password sign-in is enabled in Supabase Auth.");
         return;
       }
-      router.push("/dashboard"); router.refresh();
+      const { data: { user } } = await supabase.auth.getUser();
+      const membershipResult = user ? await supabase.from("tenant_memberships").select("tenant_id").eq("user_id", user.id).eq("is_active", true).limit(1) : { data: [] };
+      router.push(membershipResult.data && membershipResult.data.length > 0 ? "/dashboard" : "/my-account");
+      router.refresh();
     } catch {
       setBusy(false);
       setError("Supabase is not configured yet. Add the project URL and publishable/anon key to your environment, then try again.");
@@ -43,6 +46,10 @@ export default function LoginPage() {
         {error && <p role="alert" className="error-text" style={{ marginTop: 14 }}>{error}</p>}
         <button className="btn btn-primary" type="submit" disabled={busy} style={{ width: "100%", marginTop: 20, opacity: busy ? .7 : 1 }}>{busy ? "Signing in…" : "Sign in securely"}</button>
       </form>
+      <div className="action-row" style={{marginTop:16}}>
+        <Link className="link-text small" href="/activate">Activate customer account</Link>
+        <Link className="link-text small" href="/recover">Forgot password?</Link>
+      </div>
       <div className="notice" style={{ marginTop: 18 }}><LockKeyhole size={15} style={{ flexShrink: 0, marginTop: 1 }} /><span>This page never stores passwords in the application database. Configure and test phone/password sign-in in Supabase Auth before production use.</span></div>
     </div>
   </div></main>;
