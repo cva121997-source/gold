@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
   const subscriptionRef = typeof entity?.id === "string" ? entity.id : null;
   const eventTime = epoch(payload.created_at) ?? new Date().toISOString();
   const bodyHash = createHash("sha256").update(rawBody, "utf8").digest("hex");
-  const eventId = request.headers.get("x-razorpay-event-id")?.trim() || bodyHash;
+  const headerEventId = request.headers.get("x-razorpay-event-id")?.trim() ?? "";
+  const eventId = /^[a-zA-Z0-9_-]{1,150}$/.test(headerEventId) ? headerEventId : bodyHash;
 
   const inserted = await admin.from("subscription_webhook_events").insert({
     event_id: eventId, event_type: eventType || "unknown", provider_subscription_ref: subscriptionRef,
@@ -83,17 +84,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Could not persist subscription webhook event." }, { status: 500 });
     }
     const { data: prior, error: priorError } = await admin.from("subscription_webhook_events")
-      .select("status").eq("event_id", eventId).maybeSingle();
+      .select("event_id,status,updated_at").or("event_id.eq." + eventId + ",body_sha256.eq." + bodyHash).limit(1).maybeSingle();
     if (priorError) return NextResponse.json({ error: "Could not inspect duplicate webhook event." }, { status: 500 });
     if (prior?.status === "processed" || prior?.status === "ignored") {
       return NextResponse.json({ ok: true, duplicate: true });
     }
-    if (prior?.status === "processing") {
+    const isStaleProcessing = prior?.status === "processing" && Date.now() - new Date(prior.updated_at).getTime() > 5 * 60 * 1000;
+    if (prior?.status === "processing" && !isStaleProcessing) {
       return NextResponse.json({ ok: true, duplicate: true, processing: true }, { status: 202 });
     }
     const { error: retryError } = await admin.from("subscription_webhook_events").update({
       status: "processing", safe_error: null, updated_at: new Date().toISOString()
-    }).eq("event_id", eventId);
+    }).eq("event_id", prior?.event_id ?? eventId);
     if (retryError) return NextResponse.json({ error: "Could not resume webhook processing." }, { status: 500 });
   }
 
