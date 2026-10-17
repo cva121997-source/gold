@@ -84,7 +84,7 @@ export default function RazorpayCheckoutButton(props: Props) {
     setError("");
     setNotice("");
     const amount = Number(props.allowAmountEdit ? amountText : props.amount);
-    if (!Number.isFinite(amount) || amount <= 0 || Math.round(amount * 100) !== amount * 100) {
+    if (!Number.isFinite(amount) || amount <= 0 || Math.abs(Math.round(amount * 100) - amount * 100) > 0.000001) {
       setError("Enter a valid amount with no more than two decimal places.");
       return;
     }
