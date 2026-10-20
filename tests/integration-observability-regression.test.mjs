@@ -34,6 +34,6 @@ test("integration activity summarizes last success, last failure, retry backlog 
 
 test("integration readiness does not represent provider credentials as a successful connection", () => {
   assert.match(page, /Configured.*does not necessarily mean a provider has been tested/s);
-  assert.match(route, /No confirmed success/);
+  assert.match(page, /No confirmed success/);
   assert.match(route, /activityAvailable/);
 });
