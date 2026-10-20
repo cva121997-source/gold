@@ -47,6 +47,7 @@ export default function SupplierBillsPage(){
  const [paymentMethod,setPaymentMethod]=useState("bank_transfer");
  const [paymentReference,setPaymentReference]=useState("");
  const [paymentDate,setPaymentDate]=useState(today());
+ const [paymentIdempotencyKey,setPaymentIdempotencyKey]=useState("");
  const [reversingId,setReversingId]=useState("");
  const [reversalReason,setReversalReason]=useState("");
  const [varianceReason,setVarianceReason]=useState("");
@@ -94,19 +95,19 @@ export default function SupplierBillsPage(){
 
  async function loadBillDetails(id:string){
   setSelectedId(id);setError("");setNotice("");setReversingId("");setReversalReason("");
-  const bill=bills.find(x=>x.id===id);
   const supabase=createClient();
-  const [l,p]=await Promise.all([
+  const [billRecord,l,p]=await Promise.all([
+   supabase.from("supplier_bills").select("purchase_order_id").eq("tenant_id",tenantId).eq("id",id).maybeSingle(),
    supabase.from("supplier_bill_lines").select("id,supplier_bill_id,purchase_order_line_id,description,quantity,unit_cost,tax_rate,line_subtotal,tax_amount,line_total,notes").eq("tenant_id",tenantId).eq("supplier_bill_id",id).order("created_at"),
    supabase.from("supplier_bill_payments").select("id,payment_number,amount,payment_method,payment_reference,payment_date,status,created_by,reversed_at,reversal_reason").eq("tenant_id",tenantId).eq("supplier_bill_id",id).order("payment_date",{ascending:false}).limit(200)
   ]);
-  if(l.error||p.error){setError("Could not load bill lines/payment history.");return;}
+  if(billRecord.error||l.error||p.error){setError("Could not load bill, line or payment history.");return;}
   setLines((l.data??[]) as BillLine[]);setPayments((p.data??[]) as Payment[]);
-  if(bill?.purchase_order_id){
-   const {data,error:lineError}=await supabase.from("purchase_order_lines").select("id,purchase_order_id,product_code,description,ordered_quantity,received_quantity,unit_cost,tax_rate").eq("tenant_id",tenantId).eq("purchase_order_id",bill.purchase_order_id).order("line_number");
+  if(billRecord.data?.purchase_order_id){
+   const {data,error:lineError}=await supabase.from("purchase_order_lines").select("id,purchase_order_id,product_code,description,ordered_quantity,received_quantity,unit_cost,tax_rate").eq("tenant_id",tenantId).eq("purchase_order_id",billRecord.data.purchase_order_id).order("line_number");
    if(lineError){setError("Could not load linked order lines.");return;}setPoLines((data??[]) as POLine[]);
   }else{setPoLines([]);}
-  setSelectedPOLineId("");setLineDescription("");setLineQuantity("1");setLineCost("0");setLineTax("0");
+  setSelectedPOLineId("");setLineDescription("");setLineQuantity("1");setLineCost("0");setLineTax("0");setVarianceReason("");
  }
 
  async function createBill(e:FormEvent<HTMLFormElement>){
@@ -194,13 +195,15 @@ export default function SupplierBillsPage(){
   if(!Number.isFinite(amount)||amount<=0||amount>Number(selected.balance_amount)){setError("Payment must be positive and not exceed this bill's current outstanding balance.");return;}
   setBusy(true);
   try{
+   const idempotencyKey=paymentIdempotencyKey||("supplier-payment-"+crypto.randomUUID());
+   setPaymentIdempotencyKey(idempotencyKey);
    const {error:rpcError}=await createClient().rpc("record_supplier_bill_payment",{
     p_tenant_id:tenantId,p_bill_id:selected.id,p_amount:amount,p_payment_method:paymentMethod,
     p_payment_reference:paymentReference.trim()||null,p_payment_date:paymentDate,
-    p_idempotency_key:"supplier-payment-"+crypto.randomUUID()
+    p_idempotency_key:idempotencyKey
    });
    if(rpcError)throw rpcError;
-   setPaymentAmount("");setPaymentReference("");await load();await loadBillDetails(selected.id);
+   setPaymentAmount("");setPaymentReference("");setPaymentIdempotencyKey("");await load();await loadBillDetails(selected.id);
    setNotice("Supplier payment recorded against the bill. Bill balance and audit history were updated atomically.");
   }catch{setError("Payment failed. Recheck the balance, method, branch permission and bill status. No direct cash/bank account integration is implied by this ledger entry.");}
   finally{setBusy(false);}
@@ -271,10 +274,10 @@ export default function SupplierBillsPage(){
     </tbody></table></div>
     {selected.status==="draft"&&canManage&&<div className="action-row" style={{marginTop:14}}><button className="btn btn-primary" type="button" disabled={busy||lines.length===0||(priceVarianceLines.length>0&&!varianceApproved)} onClick={()=>void postBill()}><CheckCircle2 size={14}/> {priceVarianceLines.length>0&&!varianceApproved?"Approve variance before posting":"Match & post bill"}</button></div>}
     {["posted","partially_paid"].includes(selected.status)&&canManage&&<section style={{borderTop:"1px solid #e7ece7",marginTop:20,paddingTop:18}}><h3>Record supplier payment</h3><p className="small muted">Outstanding balance: {money(Number(selected.balance_amount))}. The payment is logged against this bill; it is not a bank integration.</p><form onSubmit={recordPayment}><div className="form-grid">
-     <div className="field"><label htmlFor="supplier-payment-amount">Payment amount (₹) *</label><input id="supplier-payment-amount" required type="number" min="0.01" max={Number(selected.balance_amount)} step="0.01" value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)}/></div>
-     <div className="field"><label htmlFor="supplier-payment-method">Method *</label><select id="supplier-payment-method" value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)}>{["bank_transfer","upi","neft","rtgs","cheque","cash","other"].map(m=><option key={m} value={m}>{m.replaceAll("_"," ")}</option>)}</select></div>
-     <div className="field"><label htmlFor="supplier-payment-date">Payment date *</label><input id="supplier-payment-date" type="date" required value={paymentDate} onChange={e=>setPaymentDate(e.target.value)}/></div>
-     <div className="field"><label htmlFor="supplier-payment-ref">Reference</label><input id="supplier-payment-ref" maxLength={160} value={paymentReference} onChange={e=>setPaymentReference(e.target.value)} placeholder="UTR, cheque no, receipt reference"/></div>
+     <div className="field"><label htmlFor="supplier-payment-amount">Payment amount (₹) *</label><input id="supplier-payment-amount" required type="number" min="0.01" max={Number(selected.balance_amount)} step="0.01" value={paymentAmount} onChange={e=>{setPaymentAmount(e.target.value);setPaymentIdempotencyKey("");}}/></div>
+     <div className="field"><label htmlFor="supplier-payment-method">Method *</label><select id="supplier-payment-method" value={paymentMethod} onChange={e=>{setPaymentMethod(e.target.value);setPaymentIdempotencyKey("");}}>{["bank_transfer","upi","neft","rtgs","cheque","cash","other"].map(m=><option key={m} value={m}>{m.replaceAll("_"," ")}</option>)}</select></div>
+     <div className="field"><label htmlFor="supplier-payment-date">Payment date *</label><input id="supplier-payment-date" type="date" required value={paymentDate} onChange={e=>{setPaymentDate(e.target.value);setPaymentIdempotencyKey("");}}/></div>
+     <div className="field"><label htmlFor="supplier-payment-ref">Reference</label><input id="supplier-payment-ref" maxLength={160} value={paymentReference} onChange={e=>{setPaymentReference(e.target.value);setPaymentIdempotencyKey("");}} placeholder="UTR, cheque no, receipt reference"/></div>
     </div><button className="btn btn-primary" type="submit" disabled={busy||Number(paymentAmount)<=0||Number(paymentAmount)>Number(selected.balance_amount)} style={{marginTop:12}}><Banknote size={14}/> Record payment</button></form></section>}
     <div style={{marginTop:20}}><h3>Payment history</h3>{payments.length===0?<p className="small muted">No supplier payments recorded against this bill.</p>:<div style={{display:"grid",gap:8}}>{payments.map(p=><div className="list-card" key={p.id} style={{display:"grid",gap:10}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{p.payment_number}</strong><div className="small muted">{p.payment_date} · {p.payment_method.replaceAll("_"," ")}{p.payment_reference?" · Ref "+p.payment_reference:""}</div>{p.reversal_reason&&<div className="small muted">Reversal: {p.reversal_reason}</div>}</div><div><strong>{money(Number(p.amount))}</strong><div className="small muted">{p.status}</div></div></div>
      {p.status==="confirmed"&&canManage&&<div>{reversingId!==p.id?<button type="button" className="btn btn-secondary" disabled={busy} onClick={()=>setReversingId(p.id)}><Undo2 size={14}/> Reverse payment entry</button>:<div className="form-grid"><div className="field"><label htmlFor={"reverse-"+p.id}>Reason *</label><input id={"reverse-"+p.id} minLength={5} maxLength={500} value={reversalReason} onChange={e=>setReversalReason(e.target.value)} placeholder="Bank return, duplicate entry, correction…"/></div><div className="field" style={{alignSelf:"end"}}><button type="button" className="btn btn-secondary" disabled={busy||reversalReason.trim().length<5} onClick={()=>void reversePayment(p)}>Confirm reversal</button></div></div>}</div>}
