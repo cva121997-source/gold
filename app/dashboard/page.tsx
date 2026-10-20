@@ -42,6 +42,7 @@ export default async function DashboardPage() {
           { href: "/enrolments", icon: ClipboardList, title: "Enrolments", detail: "Scheme members and due schedules" },
           { href: "/collections", icon: Receipt, title: "Collections", detail: "Manual receipts and payments" },
           { href: "/pos", icon: Receipt, title: "POS & billing", detail: "Draft and issued invoices" },
+          { href: "/credit-notes", icon: ReceiptText, title: "Credit notes & returns", detail: "Issue return documents and process tracked-piece returns" },
           { href: "/inventory", icon: Boxes, title: "Inventory", detail: "Stock register and movement history" },
           { href: "/purchasing", icon: ShoppingCart, title: "Purchasing", detail: "Suppliers, purchase orders and goods receipts" },
           { href: "/supplier-bills", icon: ReceiptText, title: "Supplier invoices", detail: "Match bills, track payables and record payments" },
