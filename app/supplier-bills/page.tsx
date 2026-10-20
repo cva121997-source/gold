@@ -10,7 +10,7 @@ type Membership={tenant_id:string;branch_id:string|null;role:string;tenants:{dis
 type Branch={id:string;name:string;branch_code:string};
 type Supplier={id:string;supplier_code:string;name:string;is_active:boolean};
 type Order={id:string;tenant_id:string;branch_id:string;supplier_id:string;po_number:string;status:string;total_amount:number};
-type Bill={id:string;tenant_id:string;branch_id:string;supplier_id:string;purchase_order_id:string|null;supplier_invoice_number:string|null;invoice_date:string;due_date:string|null;status:string;subtotal:number;tax_amount:number;total_amount:number;paid_amount:number;balance_amount:number;notes:string|null;source_reference:string|null;created_by:string;posted_at:string|null;created_at:string;updated_at:string};
+type Bill={id:string;tenant_id:string;branch_id:string;supplier_id:string;purchase_order_id:string|null;supplier_invoice_number:string|null;invoice_date:string;due_date:string|null;status:string;subtotal:number;tax_amount:number;total_amount:number;paid_amount:number;balance_amount:number;notes:string|null;source_reference:string|null;created_by:string;posted_at:string|null;price_variance_approved_by:string|null;price_variance_approved_at:string|null;price_variance_reason:string|null;created_at:string;updated_at:string};
 type POLine={id:string;purchase_order_id:string;product_code:string;description:string;ordered_quantity:number;received_quantity:number;unit_cost:number;tax_rate:number};
 type BillLine={id:string;supplier_bill_id:string;purchase_order_line_id:string|null;description:string;quantity:number;unit_cost:number;tax_rate:number;line_subtotal:number;tax_amount:number;line_total:number;notes:string|null};
 type Payment={id:string;payment_number:string;amount:number;payment_method:string;payment_reference:string|null;payment_date:string;status:string;created_by:string;reversed_at:string|null;reversal_reason:string|null};
@@ -49,6 +49,9 @@ export default function SupplierBillsPage(){
  const [paymentDate,setPaymentDate]=useState(today());
  const [reversingId,setReversingId]=useState("");
  const [reversalReason,setReversalReason]=useState("");
+ const [varianceReason,setVarianceReason]=useState("");
+ const [voidReason,setVoidReason]=useState("");
+ const [showVoidForm,setShowVoidForm]=useState(false);
  const [loading,setLoading]=useState(true);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -61,6 +64,9 @@ export default function SupplierBillsPage(){
  const branchMap=useMemo(()=>new Map(branches.map(x=>[x.id,x])),[branches]);
  const selectedOrder=orders.find(x=>x.id===selected?.purchase_order_id)??null;
  const draftPOLines=poLines.filter(x=>x.received_quantity>0);
+ const priceVarianceLines=lines.filter(line=>{const po=poLines.find(x=>x.id===line.purchase_order_line_id);return !!po&&(Math.abs(Number(line.unit_cost)-Number(po.unit_cost))>0.01||Math.abs(Number(line.tax_rate)-Number(po.tax_rate))>0.001);});
+ const varianceApproved=!!selected?.price_variance_approved_by&&!!selected?.price_variance_approved_at&&String(selected?.price_variance_reason??"").trim().length>=5&&selected.price_variance_approved_by!==selected.created_by;
+ const canApproveVariance=["owner","manager"].includes(member?.role??"");
  const totalOutstanding=bills.filter(x=>["posted","partially_paid"].includes(x.status)).reduce((sum,x)=>sum+Number(x.balance_amount),0);
  const overdueBills=bills.filter(x=>["posted","partially_paid"].includes(x.status)&&x.due_date&&x.due_date<today());
 
@@ -77,7 +83,7 @@ export default function SupplierBillsPage(){
    supabase.from("branches").select("id,name,branch_code").eq("tenant_id",tenantId).eq("is_active",true).order("name"),
    supabase.from("suppliers").select("id,supplier_code,name,is_active").eq("tenant_id",tenantId).eq("is_active",true).order("name").limit(2000),
    supabase.from("purchase_orders").select("id,tenant_id,branch_id,supplier_id,po_number,status,total_amount").eq("tenant_id",tenantId).in("status",["ordered","partially_received","received"]).order("order_date",{ascending:false}).limit(2000),
-   supabase.from("supplier_bills").select("id,tenant_id,branch_id,supplier_id,purchase_order_id,supplier_invoice_number,invoice_date,due_date,status,subtotal,tax_amount,total_amount,paid_amount,balance_amount,notes,source_reference,created_by,posted_at,created_at,updated_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(2000)
+   supabase.from("supplier_bills").select("id,tenant_id,branch_id,supplier_id,purchase_order_id,supplier_invoice_number,invoice_date,due_date,status,subtotal,tax_amount,total_amount,paid_amount,balance_amount,notes,source_reference,created_by,posted_at,price_variance_approved_by,price_variance_approved_at,price_variance_reason,created_at,updated_at").eq("tenant_id",tenantId).order("created_at",{ascending:false}).limit(2000)
   ]);
   if(b.error||s.error||o.error||bi.error){setError("Could not load accounts payable. Verify supplier-bill migration and branch permissions.");return;}
   setBranches((b.data??[]) as Branch[]);setSuppliers((s.data??[]) as Supplier[]);setOrders((o.data??[]) as Order[]);setBills((bi.data??[]) as Bill[]);
@@ -145,10 +151,40 @@ export default function SupplierBillsPage(){
  }
 
  async function postBill(){
-  if(!selected)return;setBusy(true);setError("");setNotice("");
+  if(!selected)return;
+  if(priceVarianceLines.length>0&&!varianceApproved){setError("A separate owner/manager must approve the purchase price or tax variance before this bill can be posted.");return;}
+  setBusy(true);setError("");setNotice("");
   try{const {error:rpcError}=await createClient().rpc("post_supplier_bill",{p_tenant_id:tenantId,p_bill_id:selected.id});if(rpcError)throw rpcError;
    await load();await loadBillDetails(selected.id);setNotice("Supplier invoice posted. Subtotal, tax and total were calculated from its lines and the open payable balance is now tracked.");
   }catch(e){const m=e&&typeof e==="object"&&"message" in e?String((e as {message?:unknown}).message??""):"";setError(m&&m.length<240?m:"Invoice posting failed. Check invoice number, PO/branch/supplier matching and whether billed quantities exceed received quantities.");}
+  finally{setBusy(false);}
+ }
+
+ async function approveVariance(){
+  if(!selected||!canApproveVariance){setError("Only an owner or manager may approve a purchase price variance.");return;}
+  if(selected.created_by===userId){setError("The bill creator cannot approve their own purchase price variance.");return;}
+  if(varianceReason.trim().length<5||varianceReason.trim().length>500){setError("Enter an approval reason between 5 and 500 characters.");return;}
+  setBusy(true);setError("");setNotice("");
+  try{
+   const {error:rpcError}=await createClient().rpc("approve_supplier_bill_price_variance",{p_tenant_id:tenantId,p_bill_id:selected.id,p_reason:varianceReason.trim()});
+   if(rpcError)throw rpcError;
+   const id=selected.id;setVarianceReason("");await load();await loadBillDetails(id);
+   setNotice("Purchase price/tax variance approved by a separate owner or manager. Editing any bill line clears this approval.");
+  }catch(e){const m=e&&typeof e==="object"&&"message" in e?String((e as {message?:unknown}).message??""):"";setError(m&&m.length<240?m:"Variance approval failed. A different owner/manager with access to this branch must provide a reason.");}
+  finally{setBusy(false);}
+ }
+
+ async function voidBill(){
+  if(!selected)return;
+  if(voidReason.trim().length<5||voidReason.trim().length>500){setError("Enter a void reason between 5 and 500 characters.");return;}
+  setBusy(true);setError("");setNotice("");
+  try{
+   const id=selected.id;
+   const {error:rpcError}=await createClient().rpc("void_supplier_bill",{p_tenant_id:tenantId,p_bill_id:id,p_reason:voidReason.trim()});
+   if(rpcError)throw rpcError;
+   await load();setSelectedId("");setLines([]);setPayments([]);setPoLines([]);setVoidReason("");setShowVoidForm(false);
+   setNotice("Supplier bill voided with an audit reason. Existing payment history is never erased; paid or partially paid bills must use payment reversals first.");
+  }catch(e){const m=e&&typeof e==="object"&&"message" in e?String((e as {message?:unknown}).message??""):"";setError(m&&m.length<240?m:"Bill could not be voided. Only a draft or unpaid posted bill can be voided with the required role and reason.");}
   finally{setBusy(false);}
  }
 
@@ -215,6 +251,11 @@ export default function SupplierBillsPage(){
    {selected&&<section className="panel" style={{marginTop:18}}>
     <div className="section-head" style={{marginTop:0,alignItems:"flex-start"}}><div><div className="eyebrow">Invoice details</div><h2 style={{marginTop:8}}>{selected.supplier_invoice_number??"Draft bill"}</h2><p className="small muted" style={{marginBottom:0}}>{supplierMap.get(selected.supplier_id)?.name??"Supplier"} · {branchMap.get(selected.branch_id)?.name??"Branch"} · {selected.purchase_order_id?selectedOrder?.po_number??"Linked purchase order":"Non-PO bill"}</p><p className="small muted" style={{marginTop:4}}>Invoice {selected.invoice_date} · Due {selected.due_date??"Not set"}</p></div><div style={{textAlign:"right"}}><strong>{money(Number(selected.total_amount))}</strong><div className="small muted">Total incl. line tax</div><div className="small muted">Paid {money(Number(selected.paid_amount))} · Due {money(Number(selected.balance_amount))}</div><span className="pill pill-blue" style={{display:"inline-flex",marginTop:6}}>{selected.status}</span></div></div>
     {selected.notes&&<p className="small muted">{selected.notes}</p>}
+    {selected.status==="draft"&&selected.purchase_order_id&&priceVarianceLines.length>0&&<section className="notice" style={{display:"block",marginBottom:14}}>
+     <strong>Purchase price/tax variance review</strong>
+     <p className="small" style={{marginTop:6,marginBottom:8}}>{priceVarianceLines.length} invoice line(s) differ from their received purchase-order price or tax rate. A separate owner/manager must approve this variance before posting. Editing any bill line clears this approval.</p>
+     {varianceApproved?<div className="small">Approved by a separate owner/manager. Reason: {selected.price_variance_reason}</div>:canApproveVariance&&selected.created_by!==userId?<div className="form-grid"><div className="field"><label htmlFor="bill-variance-reason">Approval reason *</label><input id="bill-variance-reason" minLength={5} maxLength={500} required value={varianceReason} onChange={e=>setVarianceReason(e.target.value)} placeholder="Supplier price update, documented exception…"/></div><div className="field" style={{alignSelf:"end"}}><button className="btn btn-primary" type="button" disabled={busy||varianceReason.trim().length<5} onClick={()=>void approveVariance()}><CheckCircle2 size={14}/> Approve price/tax variance</button></div></div>:<p className="small" style={{marginBottom:0}}>Only an owner/manager other than the bill creator can approve this variance.</p>}
+    </section>}
     {selected.status==="draft"&&canManage&&<form onSubmit={addLine} style={{marginBottom:18}}><h3>Add invoice line</h3>
      {selected.purchase_order_id?<div className="notice" style={{marginBottom:12}}>Choose a received PO line; each linked invoice line must match a line on {selectedOrder?.po_number??"the selected order"}. The post action checks cumulative billed quantity.</div>:null}
      <div className="form-grid">
@@ -228,7 +269,7 @@ export default function SupplierBillsPage(){
     {lines.map(l=><tr key={l.id}><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}><strong>{l.description}</strong>{l.notes&&<div className="small muted">{l.notes}</div>}</td><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}>{Number(l.quantity)}</td><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}>{money(Number(l.unit_cost))}</td><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}>{Number(l.tax_rate)}%</td><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}>{money(Number(l.line_total))}</td><td style={{padding:9,borderBottom:"1px solid #edf0ed"}}>{l.purchase_order_line_id?<span className="pill pill-green">PO matched</span>:<span className="pill pill-demo">Manual</span>}</td></tr>)}
     {lines.length===0&&<tr><td colSpan={6} style={{padding:14}} className="small muted">No invoice lines yet.</td></tr>}
     </tbody></table></div>
-    {selected.status==="draft"&&canManage&&<div className="action-row" style={{marginTop:14}}><button className="btn btn-primary" type="button" disabled={busy||lines.length===0} onClick={()=>void postBill()}><CheckCircle2 size={14}/> Match & post bill</button></div>}
+    {selected.status==="draft"&&canManage&&<div className="action-row" style={{marginTop:14}}><button className="btn btn-primary" type="button" disabled={busy||lines.length===0||(priceVarianceLines.length>0&&!varianceApproved)} onClick={()=>void postBill()}><CheckCircle2 size={14}/> {priceVarianceLines.length>0&&!varianceApproved?"Approve variance before posting":"Match & post bill"}</button></div>}
     {["posted","partially_paid"].includes(selected.status)&&canManage&&<section style={{borderTop:"1px solid #e7ece7",marginTop:20,paddingTop:18}}><h3>Record supplier payment</h3><p className="small muted">Outstanding balance: {money(Number(selected.balance_amount))}. The payment is logged against this bill; it is not a bank integration.</p><form onSubmit={recordPayment}><div className="form-grid">
      <div className="field"><label htmlFor="supplier-payment-amount">Payment amount (₹) *</label><input id="supplier-payment-amount" required type="number" min="0.01" max={Number(selected.balance_amount)} step="0.01" value={paymentAmount} onChange={e=>setPaymentAmount(e.target.value)}/></div>
      <div className="field"><label htmlFor="supplier-payment-method">Method *</label><select id="supplier-payment-method" value={paymentMethod} onChange={e=>setPaymentMethod(e.target.value)}>{["bank_transfer","upi","neft","rtgs","cheque","cash","other"].map(m=><option key={m} value={m}>{m.replaceAll("_"," ")}</option>)}</select></div>
@@ -238,6 +279,10 @@ export default function SupplierBillsPage(){
     <div style={{marginTop:20}}><h3>Payment history</h3>{payments.length===0?<p className="small muted">No supplier payments recorded against this bill.</p>:<div style={{display:"grid",gap:8}}>{payments.map(p=><div className="list-card" key={p.id} style={{display:"grid",gap:10}}><div style={{display:"flex",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}><div><strong>{p.payment_number}</strong><div className="small muted">{p.payment_date} · {p.payment_method.replaceAll("_"," ")}{p.payment_reference?" · Ref "+p.payment_reference:""}</div>{p.reversal_reason&&<div className="small muted">Reversal: {p.reversal_reason}</div>}</div><div><strong>{money(Number(p.amount))}</strong><div className="small muted">{p.status}</div></div></div>
      {p.status==="confirmed"&&canManage&&<div>{reversingId!==p.id?<button type="button" className="btn btn-secondary" disabled={busy} onClick={()=>setReversingId(p.id)}><Undo2 size={14}/> Reverse payment entry</button>:<div className="form-grid"><div className="field"><label htmlFor={"reverse-"+p.id}>Reason *</label><input id={"reverse-"+p.id} minLength={5} maxLength={500} value={reversalReason} onChange={e=>setReversalReason(e.target.value)} placeholder="Bank return, duplicate entry, correction…"/></div><div className="field" style={{alignSelf:"end"}}><button type="button" className="btn btn-secondary" disabled={busy||reversalReason.trim().length<5} onClick={()=>void reversePayment(p)}>Confirm reversal</button></div></div>}</div>}
     </div>)}</div>}</div>
+   </section>}
+   {selected&&(selected.status==="draft"||(selected.status==="posted"&&Number(selected.paid_amount)===0))&&canManage&&<section className="panel" style={{marginTop:18}}>
+    <h3>Void supplier bill</h3><p className="small muted">Voiding is allowed only for drafts or unpaid posted bills. Paid or partially paid invoices cannot be erased; reverse confirmed supplier payment entries first. A reason is recorded in the audit log.</p>
+    {!showVoidForm?<button className="btn btn-secondary" type="button" onClick={()=>setShowVoidForm(true)} disabled={busy}>Void supplier bill</button>:<div className="form-grid"><div className="field"><label htmlFor="supplier-bill-void-reason">Void reason *</label><input id="supplier-bill-void-reason" minLength={5} maxLength={500} required value={voidReason} onChange={e=>setVoidReason(e.target.value)} placeholder="Duplicate invoice, cancelled purchase…"/></div><div className="field" style={{alignSelf:"end",display:"flex",gap:8,flexWrap:"wrap"}}><button className="btn btn-primary" type="button" disabled={busy||voidReason.trim().length<5} onClick={()=>void voidBill()}>Confirm void</button><button className="btn btn-secondary" type="button" disabled={busy} onClick={()=>{setShowVoidForm(false);setVoidReason("");}}>Cancel</button></div></div>}
    </section>}
    <div className="action-row" style={{marginTop:16}}><Link className="btn btn-secondary" href="/purchasing">Purchase orders & receipts</Link><Link className="btn btn-secondary" href="/suppliers">Supplier register</Link></div>
   </>}
