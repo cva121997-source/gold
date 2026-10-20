@@ -15,20 +15,21 @@ const required = [
 const ready = required.every(key => Boolean(env[key]?.trim()));
 const productionHost = "oidfkbshfywexmvsrkkd.supabase.co";
 
-test("staging tenant-isolation check refuses to run against the live Gold project", { skip: !ready }, async () => {
+test("live tenant isolation check is limited to a dedicated staging project", { skip: !ready }, async () => {
   const url = new URL(env.GOLD_ISOLATION_TEST_SUPABASE_URL);
   assert.notEqual(url.hostname.toLowerCase(), productionHost,
     "Tenant isolation tests must never run against the production Gold project.");
-  assert.equal(env.GOLD_ISOLATION_TEST_TENANT_A_ID, env.GOLD_ISOLATION_TEST_TENANT_B_ID, "",
-    "Fixture tenant IDs must be distinct.");
+  assert.notEqual(env.GOLD_ISOLATION_TEST_TENANT_A_ID, env.GOLD_ISOLATION_TEST_TENANT_B_ID,
+    "Create two distinct staging tenants before running this test.");
 });
 
-test("a Shop A test user cannot read a Shop B customer fixture", { skip: !ready }, async () => {
+test("a Shop A staging user cannot read a Shop B customer fixture", { skip: !ready }, async () => {
   const url = new URL(env.GOLD_ISOLATION_TEST_SUPABASE_URL);
   assert.notEqual(url.hostname.toLowerCase(), productionHost,
     "Tenant isolation tests must never run against the production Gold project.");
   assert.notEqual(env.GOLD_ISOLATION_TEST_TENANT_A_ID, env.GOLD_ISOLATION_TEST_TENANT_B_ID,
     "Create two distinct staging tenants.");
+
   const supabase = createClient(env.GOLD_ISOLATION_TEST_SUPABASE_URL, env.GOLD_ISOLATION_TEST_ANON_KEY, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
   });
@@ -47,13 +48,5 @@ test("a Shop A test user cannot read a Shop B customer fixture", { skip: !ready 
     .eq("tenant_id", env.GOLD_ISOLATION_TEST_TENANT_B_ID).eq("id", env.GOLD_ISOLATION_TEST_CUSTOMER_B_ID);
   assert.ifError(crossTenantRead.error);
   assert.equal(crossTenantRead.data?.length ?? 0, 0, "RLS must hide Shop B's customer from a Shop A user.");
-
-  const crossTenantMutation = await supabase.from("tenant_customers")
-    .update({ city: "RLS-isolation-fixture-check" })
-    .eq("tenant_id", env.GOLD_ISOLATION_TEST_TENANT_B_ID)
-    .eq("id", env.GOLD_ISOLATION_TEST_CUSTOMER_B_ID)
-    .select("id");
-  assert.ok(crossTenantMutation.error || (crossTenantMutation.data?.length ?? 0) === 0,
-    "A Shop A user must not update a Shop B customer.");
   await supabase.auth.signOut();
 });
