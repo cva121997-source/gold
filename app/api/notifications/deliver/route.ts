@@ -245,6 +245,45 @@ async function processOne(admin: ReturnType<typeof adminClient>, row: Notificati
   }
 }
 
+async function retryPendingProviderEvents(admin: ReturnType<typeof adminClient>) {
+  const { data, error } = await admin.from("notification_provider_events")
+    .select("id,provider,event_type,provider_message_ref,mapped_status")
+    .is("processed_at", null).not("mapped_status", "is", null).not("provider_message_ref", "is", null)
+    .order("received_at", { ascending: true }).limit(100);
+  if (error) throw new Error("Pending provider delivery events could not be loaded.");
+  let processed = 0;
+  for (const event of (data ?? []) as Array<{ id: string; provider: string; event_type: string; provider_message_ref: string; mapped_status: string }>) {
+    const channel = event.provider === "resend" ? "email" : event.provider === "twilio" ? "sms" : event.provider === "whatsapp" ? "whatsapp" : "";
+    if (!channel || !["delivered", "failed"].includes(event.mapped_status)) continue;
+    const { data: notifications, error: lookupError } = await admin.from("notifications")
+      .select("id,status,attempt_count,max_attempts").eq("provider_message_ref", event.provider_message_ref)
+      .eq("channel", channel).limit(20);
+    if (lookupError) continue;
+    const rows = (notifications ?? []) as Array<{ id: string; status: string; attempt_count: number; max_attempts: number }>;
+    if (!rows.length) continue;
+    for (const row of rows) {
+      if (!["sent", "processing"].includes(row.status)) continue;
+      const failure = event.mapped_status === "failed";
+      const change = failure
+        ? {
+            status: "failed",
+            failure_reason: ("Provider reported terminal delivery failure (" + event.event_type + ").").slice(0, 240),
+            next_retry_at: null,
+            // The provider accepted the message; a failed delivery must not enqueue a duplicate send.
+            attempt_count: Math.max(Number(row.attempt_count) || 0, Number(row.max_attempts) || 1)
+          }
+        : { status: "delivered", delivered_at: new Date().toISOString(), failure_reason: null, next_retry_at: null };
+      const { error: updateError } = await admin.from("notifications").update(change)
+        .eq("id", row.id).in("status", ["sent", "processing"]);
+      if (updateError) continue;
+    }
+    const { error: ledgerError } = await admin.from("notification_provider_events")
+      .update({ processed_at: new Date().toISOString(), processing_error: null }).eq("id", event.id).is("processed_at", null);
+    if (!ledgerError) processed++;
+  }
+  return processed;
+}
+
 async function run(request: NextRequest) {
   const provided = (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
   const secrets = [process.env.CRON_SECRET, process.env.NOTIFICATION_DELIVERY_SECRET]
@@ -254,6 +293,9 @@ async function run(request: NextRequest) {
   }
   let admin: ReturnType<typeof adminClient>;
   try { admin = adminClient(); } catch { return NextResponse.json({ error: "Server database configuration is missing." }, { status: 503 }); }
+  let providerEventsReconciled = 0;
+  try { providerEventsReconciled = await retryPendingProviderEvents(admin); }
+  catch { /* keep the delivery queue available while exposing only safe aggregate status */ }
   const { data, error } = await admin.rpc("claim_notification_batch", { p_limit: 50 });
   if (error) return NextResponse.json({ error: "Could not claim notifications for delivery." }, { status: 500 });
   const rows = (data ?? []) as Notification[];
@@ -264,7 +306,7 @@ async function run(request: NextRequest) {
     if (status === "failed") counts.failed++;
     if (status === "cancelled") counts.cancelled++;
   }
-  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), ...counts });
+  return NextResponse.json({ ok: true, checkedAt: new Date().toISOString(), providerEventsReconciled, ...counts });
 }
 
 export async function GET(request: NextRequest) { return run(request); }
