@@ -31,7 +31,7 @@ test("Resend webhooks verify Svix headers, raw-body signatures and replay timest
 test("Twilio callbacks are signed and attached to outbound SMS when configured", () => {
   assert.match(webhook, /TWILIO_AUTH_TOKEN/);
   assert.match(webhook, /x-twilio-signature/i);
-  assert.match(webhook, /createHmac\("sha1"/);
+  assert.match(webhook, /createHmac\("sha256",\s*secret\)/);
   assert.match(webhook, /MessageSid/);
   assert.match(webhook, /MessageStatus/);
   assert.match(delivery, /form\.set\("StatusCallback", statusCallback\)/);
