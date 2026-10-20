@@ -90,4 +90,16 @@ Before enabling a new shop or role, verify:
 - Current Gold and Sold Gold reconcile to item movements; a sale or return does not silently rewrite the historical invoice snapshot.
 - All deployed required environment variables are set in the right environment and are not exposed through a client API.
 
+An opt-in **read-only** two-tenant RLS check is provided in `tests/tenant-isolation-live.test.mjs`. To run it, provision a dedicated non-production Supabase staging project, create two distinct tenants, create a test phone/password account that belongs only to tenant A, and create a disposable customer fixture in tenant B. Export these environment variables in a private shell (do not put passwords in GitHub files or logs):
+
+- `GOLD_ISOLATION_TEST_SUPABASE_URL`
+- `GOLD_ISOLATION_TEST_ANON_KEY`
+- `GOLD_ISOLATION_TEST_PHONE`
+- `GOLD_ISOLATION_TEST_PASSWORD`
+- `GOLD_ISOLATION_TEST_TENANT_A_ID`
+- `GOLD_ISOLATION_TEST_TENANT_B_ID`
+- `GOLD_ISOLATION_TEST_CUSTOMER_B_ID`
+
+Then run `node --test tests/tenant-isolation-live.test.mjs`. It skips when the required variables are absent, refuses the connected production Gold project URL, authenticates the staging user, confirms the user belongs to A, and verifies RLS hides B's fixture. This first live check is intentionally read-only; it is not evidence that cross-tenant writes, branch-level roles or money-concurrency conditions have been fully tested. Keep staging fixtures disposable.
+
 Structural unit tests are not a substitute for the live two-tenant, two-branch integration and browser end-to-end tests that remain on the implementation checklist.
