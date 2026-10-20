@@ -22,6 +22,8 @@ export default function CustomersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [activationLink, setActivationLink] = useState("");
+  const [activationMessage, setActivationMessage] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -81,7 +83,13 @@ export default function CustomersPage() {
         full_name: fullName.trim(), mobile_e164: phone, city: city.trim() || null, created_by: user.id
       });
       if (insertError) { setError("Customer was not saved. Your role may not have permission to add customer records."); return; }
-      setFullName(""); setMobile(""); setCity(""); setNotice("Customer record created. Account activation and consent-based messaging are separate workflows.");
+      const shop = memberships.find((m) => m.tenant_id === tenantId);
+      const shopSlug = shop?.tenants?.slug ?? "";
+      const link = window.location.origin + "/activate" + (shopSlug ? "?shop=" + encodeURIComponent(shopSlug) : "");
+      const shopName = shop?.tenants?.display_name ?? "your jewellery shop";
+      setActivationLink(link);
+      setActivationMessage("Hello " + fullName.trim() + ", " + shopName + " has created your Gold customer profile. Activate your secure account here: " + link + ". Use your registered mobile number, create your own password and verify the SMS code. Never share your password or verification code.");
+      setFullName(""); setMobile(""); setCity(""); setNotice("Customer profile created. Share the secure activation instructions below; the customer sets their own password and verifies the registered mobile.");
       await loadCustomers();
     } catch { setError("Could not save the customer. Check the connection and try again."); }
     finally { setSaving(false); }
@@ -92,6 +100,7 @@ export default function CustomersPage() {
     <div style={{ marginTop: 20, marginBottom: 24 }}><div className="eyebrow"><Users size={14} /> Customer relationship management</div><h1 style={{ marginTop: 12 }}>Customers</h1><p className="lead">Create shop-scoped customer profiles and search recent records. Customer data is protected by tenant RLS, not just frontend filtering.</p></div>
     {error && <div role="alert" className="notice" style={{ marginBottom: 15 }}><CircleAlert size={16} style={{ flexShrink: 0 }} /><span>{error}</span></div>}
     {notice && <div className="notice" style={{ marginBottom: 15, color: "#1f5c3e", background: "#edf7ef", borderColor: "#cfe4d4" }}>{notice}</div>}
+    {activationLink && <section className="panel" style={{ marginBottom: 16 }}><h2>Customer account activation</h2><p className="small muted">Share this link with the customer. They must verify their own mobile and choose their password; staff never set or see the password.</p><div className="field"><label htmlFor="customer-activation-link">Secure account activation link</label><input id="customer-activation-link" readOnly value={activationLink} onFocus={e => e.target.select()} /></div><div className="field" style={{ marginTop: 10 }}><label htmlFor="customer-activation-message">Message to share</label><textarea id="customer-activation-message" readOnly rows={4} value={activationMessage} onFocus={e => e.target.select()} /></div><div className="action-row"><button className="btn btn-primary" type="button" onClick={() => { void navigator.clipboard.writeText(activationMessage).then(() => setNotice("Activation message copied. Send it only to the verified customer contact.")).catch(() => setError("Clipboard access was blocked. Select and copy the message manually.")); }}>Copy activation message</button><button className="btn btn-secondary" type="button" onClick={() => { setActivationLink(""); setActivationMessage(""); }}>Dismiss</button></div></section>}
     {loading ? <div className="panel">Loading shop access…</div> : memberships.length === 0 ? <div className="panel"><h2>No shop linked</h2><p className="muted">Set up your shop before registering customers.</p><Link href="/onboarding" className="btn btn-primary">Set up your shop</Link></div> : <div className="calc-layout">
       <section className="panel">
         <h2>New customer</h2><p className="small muted">Only collect details needed to operate the shop. Avoid collecting sensitive identifiers without a justified requirement.</p>
