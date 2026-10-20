@@ -42,7 +42,7 @@ test("WhatsApp callbacks verify Meta challenge and raw-body signature", () => {
   assert.match(webhook, /hub\.verify_token/);
   assert.match(webhook, /WHATSAPP_APP_SECRET/);
   assert.match(webhook, /x-hub-signature-256/i);
-  assert.match(webhook, /createHmac\("sha256"\)/);
+  assert.match(webhook, /createHmac\("sha256",\s*secret\)/);
   assert.match(webhook, /value\?\.statuses/);
 });
 
