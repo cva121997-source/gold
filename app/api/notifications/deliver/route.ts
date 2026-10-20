@@ -146,7 +146,7 @@ async function sendSms(to: string, body: string) {
   if (!sid || !token || !from) throw new Error("SMS provider credentials or sender are not configured.");
   const form = new URLSearchParams({ To: to, From: from, Body: body.slice(0, 1500) });
   const configuredCallback = process.env.TWILIO_STATUS_CALLBACK_URL?.trim();
-  const baseUrl = process.env.NOTIFICATION_PUBLIC_BASE_URL?.trim().replace(/\\/+$/, "");
+  const baseUrl = process.env.NOTIFICATION_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "");
   const statusCallback = configuredCallback || (baseUrl ? baseUrl + "/api/notifications/webhooks/twilio" : "");
   if (statusCallback) {
     try {
