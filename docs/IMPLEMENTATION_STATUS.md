@@ -1,6 +1,6 @@
 # Gold implementation status
 
-Updated: 2026-10-17
+Updated: 2026-10-20
 
 ## Implemented in the repository
 
@@ -52,7 +52,7 @@ Updated: 2026-10-17
 - Platform-admin plan catalogue editor for monthly/annual INR prices, trial duration, feature limits and activation state.
 - Owner-only free plan/trial activation and Razorpay-hosted paid subscription checkout; paid subscriptions remain pending until a signature-verified lifecycle webhook updates the database. Paid cancellations are scheduled at the period end.
 - Separate raw-body HMAC-verified subscription webhook, deduplicated event ledger, service-role-only state processor, stale-event protection and plan entitlement synchronization on activation/cancellation.
-- Notification queue and per-notification provider delivery state fields. Integrations page reports credential readiness without returning secrets.
+- Consent-aware queued notification worker with exponential retries and stale-processing recovery; Resend email, Twilio SMS, WhatsApp approved-template and in-app delivery adapters; signed raw-body delivery-status callbacks; replay-safe provider event ledger; and pending-callback reconciliation from the scheduled worker. The integration page reports outbound and callback readiness without exposing secrets. These paths still need real provider credentials, endpoint registration and end-to-end provider tests.
 - Owner/manager audit-log view with search, event details and CSV export.
 - CI workflow runs type-check, unit tests, lint and production build on main pushes and pull requests.
 
@@ -69,12 +69,12 @@ Updated: 2026-10-17
 - **Live market-rate feed:** the generic importer, daily schedule, input validation, import audit, stale handling and owner/manager review are implemented, but no actual provider has been selected/configured or tested. Provider schema compatibility, authorisation/licensing, alerting and real feed monitoring remain; no real rate data is imported until secrets are set. Do not describe any static/sample input as a live price.
 - **Payments:** configure Razorpay test credentials and test checkout, duplicate webhook, invalid signature, delayed/replayed event and failed payment. Gateway refunds, signed refund webhooks, disputes, automatic retries and automated provider settlement reconciliation are not finished; only a manual expected-vs-statement reconciliation register is available.
 - **Subscriptions/billing:** plan pricing/entitlement management, free trials, hosted Razorpay subscription checkout, signed lifecycle webhooks and cancellation are wired. No paid prices or merchant secrets are configured yet, and test-mode end-to-end checkout has not been performed. Dunning/retry recovery, SaaS billing invoices, grace-period policy and full subscription analytics remain.
-- **Notifications:** SMS, WhatsApp Business and email provider adapters, templates, opt-out enforcement at send time, background worker, provider callbacks and failure/retry runbooks need implementation and credentials. The queue UI and config-readiness check are not proof of delivery.
+- **Notifications:** provider adapters, active templates, send-time channel/promotional consent checks, a 5-minute worker schedule, exponential retries, stale-processing recovery, signed Resend Svix validation, Twilio signature validation, WhatsApp Meta challenge/HMAC validation, idempotent callback ledger, and pending event reconciliation are implemented. Configure `RESEND_WEBHOOK_SECRET`, `TWILIO_STATUS_CALLBACK_URL` (or `NOTIFICATION_PUBLIC_BASE_URL`), `WHATSAPP_APP_SECRET` and `WHATSAPP_WEBHOOK_VERIFY_TOKEN`; register provider callbacks and perform test sends. No real provider delivery has been verified because credentials/accounts are not confirmed in the environment.
 - **POS and inventory:** supplier purchase-order creation/submission, item-by-item partial goods receipts, printable Code 39 labels, count snapshots with manager review, branch-specific reorder thresholds, reason-required revaluation history, and inter-branch transfer request/approval/dispatch/receipt are implemented. Supplier invoice/AP ledgers now support PO-linked quantity matching to received stock, duplicate invoice-number guard, due dates, partial payment tracking, idempotent payment recording and audited reason-required reversals. Supplier bill price or tax differences from a linked purchase order require a separate owner/manager approval with a reason; editing invoice lines invalidates that approval. Supplier bills can be voided only while unpaid with a reason; this is an audited status change, not deletion. Still incomplete: supplier statement/bank-feed reconciliation, payment scheduling with approval thresholds, approved inventory variance posting/writes-off, QR labels, full inventory accounting and credit-note-linked stock return/refund processing.
 - **Scheme operations:** richer scheme editor/version diff and rollback, configurable first/monthly grace or weight-in periods, mature payout handling, cancellation policies, benefits/redeem-to-invoice settlement, statements and dispute handling need more coverage and legal review.
 - **CRM/customer service:** customer self-service activation, profile maintenance, richer consent/customer export workflow, statements, duplicate merge and purpose-limited data retention are incomplete.
-- **Reports and operations:** reports now have date/branch filters, collection-by-method totals and issued-credit-note totals, with CSV export. Queries remain limited to 2,000 records per source and are not suitable as a final paginated accounting export; scheduled reports, comprehensive ledger reporting, backups/restore drills, monitoring/alerting and incident runbooks still need work.
-- **Security/quality:** automated database integration tests using two unrelated shops, different roles/branches, linked/unlinked customers, money-concurrency tests, and browser E2E flows are not yet complete. Structural regression tests do not replace live tenant-isolation tests.
+- **Reports and operations:** reports have date/branch filters, collection-by-method totals and issued-credit-note totals, with CSV export. Queries remain limited to 2,000 records per source and are not suitable as a final paginated accounting export. A recovery/operations runbook is documented, but backup-plan selection, off-site exports, monitoring/alerting, retention policy, scheduled reports, accounting-grade pagination and a real restore drill still require owner configuration and verification.
+- **Security/quality:** regression tests and CI typecheck/lint/build cover key code paths, but automated live database integration tests using unrelated shops, branch-role variants, linked/unlinked customers, concurrency tests and browser E2E are not yet complete. The live Supabase Security Advisor reports `authenticated_security_definer_function_executable` warnings for authenticated workflow RPCs that rely on in-function auth/tenant/branch checks; review each warning and keep grants/privileges least-privileged. Performance Advisor also reports duplicate indexes, overlapping permissive policies and unused-index candidates; these need reviewed, measured remediation rather than blind deletion. Static tests are not a substitute for production security testing.
 - **Deployment:** Vercel production environment, required secrets, redirect URLs, cron/worker setup, domain, observability and end-to-end live deployment still need owner configuration and verification.
 
 ## External setup required
@@ -83,10 +83,12 @@ Updated: 2026-10-17
 2. Bootstrap the intended platform administrator through the project's protected admin table using the exact existing Supabase Auth user ID.
 3. Add Supabase Auth callback URLs and configure the intended phone/email authentication and verification providers.
 4. Configure Razorpay **test** credentials and subscribe to `payment.captured` at `/api/payments/razorpay/webhook`; configure the separate `/api/payments/razorpay/subscription-webhook` for subscription lifecycle events and set a webhook secret. Run end-to-end tests before considering live mode.
-5. Set real INR plan prices, trial policy and entitlements in Platform Admin → Manage plans. Do not enable live billing until hosted checkout and all subscription webhook paths have been tested.
-6. Select and obtain authorised gold-rate and messaging providers before configuring any related secrets.
-7. Configure Vercel production environment variables and prove the production deployment—not just a preview—works.
-8. Have jurisdiction-appropriate professionals review GST, invoice, scheme, consent, record-retention and customer-communication rules.
+5. Configure notification providers and templates in test mode. Register Resend at `/api/notifications/webhooks/resend`, configure Twilio's exact HTTPS status callback to `/api/notifications/webhooks/twilio`, and verify Meta's WhatsApp callback at `/api/notifications/webhooks/whatsapp`. Set callback environment variables documented in `.env.example`, send a real test message per channel, and confirm `delivered` or terminal `failed` state via callbacks.
+6. Set real INR plan prices, trial policy and entitlements in Platform Admin → Manage plans. Do not enable live billing until hosted checkout and all subscription webhook paths have been tested.
+7. Select and obtain authorised gold-rate and messaging providers before configuring any related secrets.
+8. Configure Vercel production environment variables and prove the production deployment—not just a preview—works.
+9. Follow [the operations runbook](OPERATIONS_RUNBOOK.md) to configure backups, export critical data to encrypted off-site storage, test a restore in an isolated project and document recovery objectives.
+10. Have jurisdiction-appropriate professionals review GST, invoice, scheme, consent, record-retention and customer-communication rules.
 
 ## Current honest status
 
