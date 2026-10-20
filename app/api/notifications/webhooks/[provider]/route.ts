@@ -35,7 +35,13 @@ function constantConfiguredSecret(left: string | undefined, right: string | unde
 function callbackUrl(provider: Provider) {
   if (provider === "twilio") {
     const exact = process.env.TWILIO_STATUS_CALLBACK_URL?.trim();
-    if (exact) return exact;
+    if (exact) {
+      try {
+        const parsed = new URL(exact);
+        if (parsed.protocol === "https:" && !parsed.username && !parsed.password) return exact;
+      } catch { /* Invalid callback URL is not eligible for signature verification. */ }
+      return "";
+    }
   }
   const base = process.env.NOTIFICATION_PUBLIC_BASE_URL?.trim().replace(/\/+$/, "");
   if (!base) return "";
