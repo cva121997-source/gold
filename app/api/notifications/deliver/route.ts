@@ -145,6 +145,14 @@ async function sendSms(to: string, body: string) {
   const from = process.env.TWILIO_PHONE_NUMBER?.trim() ?? "";
   if (!sid || !token || !from) throw new Error("SMS provider credentials or sender are not configured.");
   const form = new URLSearchParams({ To: to, From: from, Body: body.slice(0, 1500) });
+  const configuredCallback = process.env.TWILIO_STATUS_CALLBACK_URL?.trim();
+  const baseUrl = process.env.NOTIFICATION_PUBLIC_BASE_URL?.trim().replace(/\\/+$/, "");
+  const statusCallback = configuredCallback || (baseUrl ? baseUrl + "/api/notifications/webhooks/twilio" : "");
+  if (statusCallback) {
+    try {
+      if (new URL(statusCallback).protocol === "https:") form.set("StatusCallback", statusCallback);
+    } catch { /* ignore malformed optional callback URL instead of blocking message delivery */ }
+  }
   const auth = Buffer.from(sid + ":" + token).toString("base64");
   const response = await fetch("https://api.twilio.com/2010-04-01/Accounts/" + encodeURIComponent(sid) + "/Messages.json", {
     method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(15000),
