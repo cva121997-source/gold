@@ -85,6 +85,62 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Gold server database access is not configured." }, { status: 503 });
   }
 
+  if (["refund.created", "refund.processed", "refund.failed", "refund.speed_changed"].includes(eventType)) {
+    const refundEntity = getObject(getObject(getObject(payload.payload).refund).entity);
+    const refundPaymentEntity = getObject(getObject(getObject(payload.payload).payment).entity);
+    const refundId = typeof refundEntity.id === "string" ? refundEntity.id : "";
+    const refundPaymentId = typeof refundEntity.payment_id === "string"
+      ? refundEntity.payment_id
+      : typeof refundPaymentEntity.id === "string" ? refundPaymentEntity.id : "";
+    const refundAmount = typeof refundEntity.amount === "number" && Number.isInteger(refundEntity.amount)
+      ? refundEntity.amount : null;
+    const refundCurrency = typeof refundEntity.currency === "string"
+      ? refundEntity.currency
+      : typeof refundPaymentEntity.currency === "string" ? refundPaymentEntity.currency : "";
+    const refundStatus = typeof refundEntity.status === "string" ? refundEntity.status : "";
+    const acquirerData = getObject(refundEntity.acquirer_data);
+    const refundArn = typeof acquirerData.arn === "string" ? acquirerData.arn : null;
+    const failureReason = typeof refundEntity.error_description === "string"
+      ? refundEntity.error_description
+      : typeof refundEntity.error_reason === "string" ? refundEntity.error_reason : null;
+    if (!/^rfnd_[A-Za-z0-9]+$/.test(refundId) || !/^pay_[A-Za-z0-9]+$/.test(refundPaymentId)
+      || refundAmount === null || refundAmount <= 0 || refundCurrency !== "INR") {
+      return NextResponse.json({ error: "Refund event is missing valid refund/payment references, amount or INR currency." }, { status: 400 });
+    }
+    const refundSafePayload = {
+      event: eventType,
+      refund_id: refundId,
+      payment_id: refundPaymentId,
+      amount_paise: refundAmount,
+      currency: refundCurrency,
+      refund_status: refundStatus || null,
+      arn: refundArn,
+      failure_reason: failureReason ? failureReason.slice(0, 240) : null,
+      created_at: typeof payload.created_at === "number" ? payload.created_at : null
+    };
+    const result = await admin.rpc("process_razorpay_refund_webhook_event", {
+      p_provider_event_id: providerEventId,
+      p_event_type: eventType,
+      p_refund_ref: refundId,
+      p_payment_ref: refundPaymentId,
+      p_amount_paise: refundAmount,
+      p_currency: refundCurrency,
+      p_refund_status: refundStatus,
+      p_payload_hash: payloadHash,
+      p_safe_payload: refundSafePayload
+    });
+    if (result.error) {
+      console.error("Razorpay refund webhook processing failed", { message: result.error.message, code: result.error.code });
+      return NextResponse.json({ error: "Verified refund event could not be processed. The provider should retry." }, { status: 500 });
+    }
+    const outcome = result.data && typeof result.data === "object" && "status" in result.data
+      ? String((result.data as { status: unknown }).status) : "processed";
+    if (["unmatched_refund", "ambiguous_refund", "refund_reference_conflict"].includes(outcome)) {
+      return NextResponse.json({ error: "Refund event could not yet be safely matched to one approved Gold refund.", result: result.data }, { status: 503 });
+    }
+    return NextResponse.json({ received: true, result: result.data });
+  }
+
   const { data, error } = await admin.rpc("process_razorpay_webhook_event", {
     p_provider_event_id: providerEventId,
     p_event_type: eventType,
