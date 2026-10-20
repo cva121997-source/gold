@@ -28,6 +28,15 @@ test("only the tracked piece sold on the source invoice can be returned", () => 
   assert.match(sql, /inventory\.customer_return_recorded/i);
 });
 
+test("a physical piece may be returned again after it is resold on a different invoice", () => {
+  const resaleFix = read("supabase/migrations/20261020125000_gold_credit_note_stock_return_resale_fix.sql");
+  assert.match(resaleFix, /drop constraint if exists credit_note_inventory_returns_tenant_id_inventory_item_id_key/i);
+  assert.match(resaleFix, /unique index if not exists credit_note_inventory_returns_sale_piece_uidx/i);
+  assert.match(resaleFix, /r\.invoice_id=v_note\.invoice_id/i);
+  assert.match(resaleFix, /r\.invoice_line_id=v_invoice_line\.id/i);
+  assert.match(resaleFix, /already been returned for this invoice line/i);
+});
+
 test("physical return UI requires disposition and reason, shows audit history, and keeps refunds separate", () => {
   assert.match(page, /record_credit_note_stock_return/);
   assert.match(page, /Physical stock return/);
