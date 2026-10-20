@@ -261,6 +261,7 @@ async function retryPendingProviderEvents(admin: ReturnType<typeof adminClient>)
     if (lookupError) continue;
     const rows = (notifications ?? []) as Array<{ id: string; status: string; attempt_count: number; max_attempts: number }>;
     if (!rows.length) continue;
+    let notificationUpdatesSucceeded = true;
     for (const row of rows) {
       if (!["sent", "processing"].includes(row.status)) continue;
       const failure = event.mapped_status === "failed";
@@ -275,7 +276,11 @@ async function retryPendingProviderEvents(admin: ReturnType<typeof adminClient>)
         : { status: "delivered", delivered_at: new Date().toISOString(), failure_reason: null, next_retry_at: null };
       const { error: updateError } = await admin.from("notifications").update(change)
         .eq("id", row.id).in("status", ["sent", "processing"]);
-      if (updateError) continue;
+      if (updateError) notificationUpdatesSucceeded = false;
+    }
+    if (!notificationUpdatesSucceeded) {
+      await admin.from("notification_provider_events").update({ processing_error: "Notification status could not be updated; worker will retry." }).eq("id", event.id).is("processed_at", null);
+      continue;
     }
     const { error: ledgerError } = await admin.from("notification_provider_events")
       .update({ processed_at: new Date().toISOString(), processing_error: null }).eq("id", event.id).is("processed_at", null);
