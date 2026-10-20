@@ -12,6 +12,7 @@ type Stocktake={id:string;tenant_id:string;branch_id:string;count_number:string;
 type StocktakeLine={id:string;stocktake_id:string;inventory_item_id:string;line_type:string;expected_status:string;is_counted:boolean;counted_at:string|null;notes:string|null};
 type Item={id:string;item_code:string;serial_number:string|null;barcode:string|null;huid:string|null;status:string;branch_id:string;product_id:string;gross_weight_grams:number|null;net_metal_weight_grams:number|null;stone_weight_grams:number|null};
 type Product={id:string;product_code:string;name:string};
+type Resolution={id:string;stocktake_id:string;stocktake_line_id:string;inventory_item_id:string;resolution_type:string;reason:string;created_by:string;created_at:string};
 
 export default function StocktakesPage(){
  const router=useRouter();
@@ -22,6 +23,8 @@ export default function StocktakesPage(){
  const [stocktakes,setStocktakes]=useState<Stocktake[]>([]);
  const [selectedId,setSelectedId]=useState("");
  const [lines,setLines]=useState<StocktakeLine[]>([]);
+ const [resolutions,setResolutions]=useState<Resolution[]>([]);
+ const [resolutionReason,setResolutionReason]=useState("");
  const [items,setItems]=useState<Item[]>([]);
  const [products,setProducts]=useState<Product[]>([]);
  const [countName,setCountName]=useState("Monthly physical stock count");
@@ -46,6 +49,7 @@ export default function StocktakesPage(){
  const foundLines=expectedLines.filter(x=>x.is_counted);
  const uncountedExpected=expectedLines.filter(x=>!x.is_counted);
  const extraLines=lines.filter(x=>x.line_type==="extra");
+ const resolutionMap=useMemo(()=>new Map(resolutions.map(x=>[x.stocktake_line_id,x])),[resolutions]);
 
  useEffect(()=>{let active=true;void(async()=>{try{
   const supabase=createClient();const {data:{user}}=await supabase.auth.getUser();if(!user){router.replace("/login");return;}
@@ -80,11 +84,13 @@ export default function StocktakesPage(){
 
  async function openStocktake(id:string){
   setError("");setNotice("");setLastResult(null);setSelectedId(id);
-  const {data,error:queryError}=await createClient().from("inventory_stocktake_lines")
-   .select("id,stocktake_id,inventory_item_id,line_type,expected_status,is_counted,counted_at,notes")
-   .eq("tenant_id",tenantId).eq("stocktake_id",id).order("line_type").limit(10000);
-  if(queryError){setError("Could not load the stocktake snapshot.");return;}
-  setLines((data??[]) as StocktakeLine[]);setScanValue("");setNotes("");
+  const supabase=createClient();
+  const [lineResult,resolutionResult]=await Promise.all([
+   supabase.from("inventory_stocktake_lines").select("id,stocktake_id,inventory_item_id,line_type,expected_status,is_counted,counted_at,notes").eq("tenant_id",tenantId).eq("stocktake_id",id).order("line_type").limit(10000),
+   supabase.from("inventory_stocktake_resolutions").select("id,stocktake_id,stocktake_line_id,inventory_item_id,resolution_type,reason,created_by,created_at").eq("tenant_id",tenantId).eq("stocktake_id",id).order("created_at",{ascending:false}).limit(10000)
+  ]);
+  if(lineResult.error||resolutionResult.error){setError("Could not load the stocktake snapshot or resolution history. Verify the discrepancy-resolution migration and branch access.");return;}
+  setLines((lineResult.data??[]) as StocktakeLine[]);setResolutions((resolutionResult.data??[]) as Resolution[]);setScanValue("");setNotes("");setResolutionReason("");
  }
 
  async function refresh(){await loadWorkspace();await loadItems();if(selectedId)await openStocktake(selectedId);}
@@ -133,6 +139,23 @@ export default function StocktakesPage(){
   finally{setBusy(false);}
  }
 
+ async function resolveDiscrepancy(line:StocktakeLine,resolution:"write_off"|"found_after_count"){
+  if(!selected||selected.status!=="completed"||!canFinalize)return;
+  const reason=resolutionReason.trim();
+  if(reason.length<5||reason.length>500){setError("Enter a resolution reason between 5 and 500 characters.");return;}
+  const stocktakeId=selected.id;
+  setBusy(true);setError("");setNotice("");
+  try{
+   const {error:rpcError}=await createClient().rpc("resolve_inventory_stocktake_discrepancy",{
+    p_tenant_id:tenantId,p_stocktake_id:stocktakeId,p_stocktake_line_id:line.id,p_resolution:resolution,p_reason:reason
+   });
+   if(rpcError)throw rpcError;
+   setResolutionReason("");await loadWorkspace();await openStocktake(stocktakeId);
+   setNotice(resolution==="write_off"?"Missing piece written off through the audited inventory workflow.":"Piece marked found after the stocktake, with reason and audit history.");
+  }catch(e){const m=e&&typeof e==="object"&&"message" in e?String((e as {message?:unknown}).message??""):"";setError(m&&m.length<240?m:"Discrepancy could not be resolved. Confirm that the item remains at this branch and still has the expected on-hand status.");}
+  finally{setBusy(false);}
+ }
+
  const grams=(v:number|null|undefined)=>Number(v??0).toLocaleString("en-IN",{minimumFractionDigits:3,maximumFractionDigits:3});
  const itemLabel=(item:Item)=>{const product=productMap.get(item.product_id);return (product?.name??"Product")+" · "+item.item_code;};
 
@@ -158,12 +181,17 @@ export default function StocktakesPage(){
        {term&&<div style={{display:"grid",gap:8,marginTop:10}}>{matchingItems.length===0?<p className="small muted">No unlisted item in this branch matches. If you scanned an expected item, find it in the snapshot below.</p>:matchingItems.map(item=><div className="list-card" key={item.id}><div style={{minWidth:0}}><strong>{itemLabel(item)}</strong><div className="small muted">{item.barcode?"Barcode "+item.barcode+" · ":""}{item.huid?"HUID "+item.huid+" · ":""}Net {grams(item.net_metal_weight_grams)} g · {item.status.replaceAll("_"," ")}</div></div><button type="button" className="btn btn-secondary" disabled={busy} onClick={()=>void markItem(item,true)}>Add as extra & mark found</button></div>)}</div>}
       </div>}
       <div style={{display:"grid",gap:8}}>
-       {lines.filter(line=>{const item=itemMap.get(line.inventory_item_id);return !term||[item?.item_code,item?.barcode,item?.huid,item?.serial_number,productMap.get(item?.product_id??"")?.name].some(v=>String(v??"").toLowerCase().includes(term));}).slice(0,500).map(line=>{const item=itemMap.get(line.inventory_item_id);return <article key={line.id} className="list-card" style={{alignItems:"flex-start",gap:12,flexWrap:"wrap"}}><div style={{flex:1,minWidth:0}}><strong>{item?itemLabel(item):"Stock item no longer in current inventory"}</strong><div className="small muted" style={{marginTop:4}}>{line.line_type==="extra"?"Unexpected item (not in the start snapshot)":"Expected status: "+line.expected_status.replaceAll("_"," ")} · {item?.barcode?"Barcode "+item.barcode+" · ":""}{item?.huid?"HUID "+item.huid:""}</div>{line.notes&&<div className="small muted" style={{marginTop:4}}>Note: {line.notes}</div>}{line.counted_at&&<div className="small muted" style={{marginTop:4}}>Counted {new Date(line.counted_at).toLocaleString("en-IN")}</div>}</div><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{line.is_counted?<span className="pill pill-green">Found</span>:<span className="pill pill-demo">Not found yet</span>}{selected.status==="open"&&canCount&&item&&<button className="btn btn-secondary" type="button" disabled={busy} onClick={()=>void markExistingLine(line,!line.is_counted)}>{line.is_counted?"Unmark":"Mark found"}</button>}</div></article>})}
+       {lines.filter(line=>{const item=itemMap.get(line.inventory_item_id);return !term||[item?.item_code,item?.barcode,item?.huid,item?.serial_number,productMap.get(item?.product_id??"")?.name].some(v=>String(v??"").toLowerCase().includes(term));}).slice(0,500).map(line=>{const item=itemMap.get(line.inventory_item_id);return <article key={line.id} className="list-card" style={{alignItems:"flex-start",gap:12,flexWrap:"wrap"}}><div style={{flex:1,minWidth:0}}><strong>{item?itemLabel(item):"Stock item no longer in current inventory"}</strong><div className="small muted" style={{marginTop:4}}>{line.line_type==="extra"?"Unexpected item (not in the start snapshot)":"Expected status: "+line.expected_status.replaceAll("_"," ")} · {item?.barcode?"Barcode "+item.barcode+" · ":""}{item?.huid?"HUID "+item.huid:""}</div>{line.notes&&<div className="small muted" style={{marginTop:4}}>Note: {line.notes}</div>}{line.counted_at&&<div className="small muted" style={{marginTop:4}}>Counted {new Date(line.counted_at).toLocaleString("en-IN")}</div>}{resolutionMap.get(line.id)&&<div className="small muted" style={{marginTop:4}}>Resolution: {resolutionMap.get(line.id)?.resolution_type.replaceAll("_"," ")} · {resolutionMap.get(line.id)?.reason} · {resolutionMap.get(line.id)?.created_at?new Date(resolutionMap.get(line.id)!.created_at).toLocaleString("en-IN"):""}</div>}</div><div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>{line.is_counted?<span className="pill pill-green">Found</span>:<span className="pill pill-demo">Not found yet</span>}{selected.status==="open"&&canCount&&item&&<button className="btn btn-secondary" type="button" disabled={busy} onClick={()=>void markExistingLine(line,!line.is_counted)}>{line.is_counted?"Unmark":"Mark found"}</button>}</div></article>})}
        {lines.length===0&&<p className="small muted">The snapshot contains no individually tracked on-hand pieces. New pieces can still be added to the count as extras.</p>}
        {lines.length>500&&<p className="small muted">Showing the first 500 pieces. Use the search box to narrow down the register.</p>}
       </div>
       {selected.status==="open"&&canFinalize&&<div className="action-row" style={{marginTop:16}}><button type="button" className="btn btn-primary" disabled={busy} onClick={()=>void finalize()}>{busy?"Finalising…":"Finalise & record discrepancies"}</button></div>}
       {selected.status==="completed"&&<div className="notice" style={{marginTop:16}}><CheckCircle2 size={16}/><span>Final result: {selected.found_count} found, {selected.missing_count} missing, {selected.extra_count} extra, {selected.changed_during_count} changed during counting. No automatic write-off was made.</span></div>}
+      {selected.status==="completed"&&canFinalize&&uncountedExpected.some(line=>!resolutionMap.has(line.id))&&<section className="panel" style={{marginTop:16,borderColor:"#e5d9bb"}}>
+       <h3>Resolve missing pieces</h3><p className="small muted">Owner/manager review is required. Each action records a reason and audit entry. A piece that was sold, transferred, or changed status during counting must be reconciled against its movement history instead of written off here.</p>
+       <div className="field" style={{marginBottom:12}}><label htmlFor="stocktake-resolution-reason">Resolution reason *</label><input id="stocktake-resolution-reason" value={resolutionReason} onChange={e=>setResolutionReason(e.target.value)} minLength={5} maxLength={500} placeholder="Physical search completed, item located, or authorised write-off basis"/></div>
+       <div style={{display:"grid",gap:8}}>{uncountedExpected.filter(line=>!resolutionMap.has(line.id)).map(line=>{const item=itemMap.get(line.inventory_item_id);return <article className="list-card" key={line.id} style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><div style={{flex:1,minWidth:0}}><strong>{item?itemLabel(item):"Stock item no longer in current inventory"}</strong><div className="small muted">Expected status: {line.expected_status.replaceAll("_"," ")}</div>{!item&&<div className="small muted">This item is no longer in the current on-hand list; review sales and transfer history before resolving it.</div>}</div>{item&&<div className="action-row" style={{marginTop:0}}><button className="btn btn-secondary" type="button" disabled={busy||resolutionReason.trim().length<5} onClick={()=>void resolveDiscrepancy(line,"write_off")}>Approve write-off</button><button className="btn btn-secondary" type="button" disabled={busy||resolutionReason.trim().length<5} onClick={()=>void resolveDiscrepancy(line,"found_after_count")}>Found after count</button></div>}</article>})}</div>
+      </section>}
       {lastResult&&<div className="notice" style={{marginTop:10}}><ClipboardCheck size={16}/><span>Finalised: {String(lastResult.found_count??0)} found · {String(lastResult.missing_count??0)} missing · {String(lastResult.extra_count??0)} extra · {String(lastResult.changed_during_count??0)} changed during count</span></div>}
      </>}
     </section>
