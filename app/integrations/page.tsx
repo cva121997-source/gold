@@ -7,8 +7,8 @@ import { ArrowLeft, CircleAlert, PlugZap, RefreshCw, ShieldCheck } from "lucide-
 import { createClient } from "@/lib/supabase/client";
 
 type Membership = { tenant_id: string; role: string; tenants: { display_name: string; slug: string } | null };
-type Integration = { key: string; name: string; category: string; configured: boolean; workflow: string };
-type StatusResponse = { tenantId: string; checkedAt: string; integrations: Integration[]; error?: string };
+type Integration = { key: string; name: string; category: string; configured: boolean; workflow: string; activityAvailable?: boolean; activity?: { lastSuccessfulAt: string | null; lastFailureAt: string | null; recentFailures: number; pendingCount: number; sampleSize: number } };
+type StatusResponse = { tenantId: string; checkedAt: string; activityWindowDays?: number; integrations: Integration[]; error?: string };
 
 export default function IntegrationsPage() {
   const router = useRouter();
@@ -79,6 +79,17 @@ export default function IntegrationsPage() {
             <span className="pill" style={{ background: item.configured ? "#edf7ef" : "#fff4df", color: item.configured ? "#1f5c3e" : "#835714", borderColor: item.configured ? "#cfe4d4" : "#ecd8ae" }}>{item.configured ? "Credentials set" : "Not configured"}</span>
           </div>
           <p className="small muted" style={{ marginTop: 12 }}>{item.workflow}</p>
+          {item.activityAvailable && item.activity && <div style={{ borderTop: "1px solid #e7ece7", marginTop: 14, paddingTop: 12 }}>
+            <div className="small" style={{ fontWeight: 650 }}>Recent activity · last 30 days</div>
+            <div className="small muted" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: 8, marginTop: 8 }}>
+              <div><span>Last success</span><div style={{ color: "var(--foreground)", marginTop: 3 }}>{item.activity.lastSuccessfulAt ? new Date(item.activity.lastSuccessfulAt).toLocaleString("en-IN") : "No confirmed success"}</div></div>
+              <div><span>Last failure</span><div style={{ color: "var(--foreground)", marginTop: 3 }}>{item.activity.lastFailureAt ? new Date(item.activity.lastFailureAt).toLocaleString("en-IN") : "No recent failure"}</div></div>
+              <div><span>Recent failures</span><div style={{ color: item.activity.recentFailures ? "#a33b2f" : "var(--foreground)", marginTop: 3 }}>{item.activity.recentFailures}</div></div>
+              <div><span>Pending / processing</span><div style={{ color: item.activity.pendingCount ? "#835714" : "var(--foreground)", marginTop: 3 }}>{item.activity.pendingCount}</div></div>
+              <div><span>Records checked</span><div style={{ color: "var(--foreground)", marginTop: 3 }}>{item.activity.sampleSize}</div></div>
+            </div>
+          </div>}
+          {item.activityAvailable === false && item.key !== "supabase" && <p className="small muted" style={{ marginTop: 12 }}>Recent activity could not be queried under the current database permissions. Credential readiness is separate from provider success.</p>}
           {item.configured && item.key === "razorpay" && <p className="small" style={{ marginBottom: 0 }}>Next: test a successful capture, duplicate webhook, failed payment and refund on Razorpay test mode.</p>}
         </article>)}
       </div>}
