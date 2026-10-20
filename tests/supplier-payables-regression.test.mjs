@@ -25,8 +25,9 @@ test("linked supplier invoices cannot exceed quantities actually received or alr
  assert.match(schema,/every invoice line must be matched to a line from the linked purchase order/i);
  assert.match(schema,/invoice quantity exceeds received quantity or has already been billed/i);
  assert.match(schema,/pol\.received_quantity/i);
- assert.match(schema,/supplier_invoice_number_uidx/i);
- assert.match(ui,/Matched purchase-order line/);
+ assert.match(schema,/supplier_bills_invoice_number_uidx/i);
+ assert.match(ui,/Received purchase-order line/);
+ assert.match(ui,/PO-linked invoices are matched against received quantities when posted/i);
  assert.match(ui,/Match & post bill/);
 });
 
