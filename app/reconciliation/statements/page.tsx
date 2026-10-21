@@ -68,8 +68,14 @@ function parseStatementCsv(input: string): CsvLine[] {
   });
 }
 
-const money = (value: number | null | undefined, currency = "INR") =>
-  new Intl.NumberFormat("en-IN", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value ?? 0));
+const money = (value: number | null | undefined, currency = "INR") => {
+  const amount = Number(value ?? 0);
+  try {
+    return new Intl.NumberFormat("en-IN", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount);
+  } catch {
+    return currency + " " + amount.toFixed(2);
+  }
+};
 
 export default function StatementReconciliationPage() {
   const [memberships, setMemberships] = useState<Membership[]>([]);
