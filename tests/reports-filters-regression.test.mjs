@@ -27,6 +27,7 @@ test("reports include issued credit notes, collection breakdown and scoped CSV e
  assert.match(page,/replaceAll\('"','""'\)/);
  assert.match(page,/\\ufeff/);
  assert.match(page,/50,000-record safety limit per source/i);
+assert.match(page,/fetchAllPages/);
  assert.match(dashboard,/href: "\/reports"/);
 });
 
