@@ -5,6 +5,8 @@ import { join } from "node:path";
 
 const read = path => readFileSync(join(process.cwd(), path), "utf8");
 const sql = read("supabase/migrations/20261020124000_gold_credit_note_stock_returns.sql");
+const resaleFix = read("supabase/migrations/20261020125000_gold_credit_note_stock_return_resale_fix.sql");
+const singlePieceMigration = read("supabase/migrations/20261021071508_gold_credit_note_single_piece_return.sql");
 const page = read("app/credit-notes/page.tsx");
 const pos = read("app/pos/page.tsx");
 const dashboard = read("app/dashboard/page.tsx");
@@ -18,6 +20,14 @@ test("credit note stock return migration is idempotent and tenant/branch protect
   assert.match(sql, /private\.has_tenant_branch_access/i);
 });
 
+test("the applied single-piece-return migration is present and matches the effective function", () => {
+  assert.match(singlePieceMigration, /create or replace function public\.record_credit_note_stock_return/i);
+  assert.match(singlePieceMigration, /v_note_line\.quantity<>1/i);
+  assert.match(singlePieceMigration, /grant execute on function public\.record_credit_note_stock_return/i);
+  const functionBody = source => source.slice(source.indexOf("create or replace function public.record_credit_note_stock_return("), source.indexOf("revoke all on function public.record_credit_note_stock_return(")).trim();
+  assert.equal(functionBody(singlePieceMigration), functionBody(resaleFix));
+});
+
 test("only the tracked piece sold on the source invoice can be returned", () => {
   assert.match(sql, /v_note\.status<>'issued'/i);
   assert.match(sql, /v_invoice_line\.inventory_item_id is distinct from p_inventory_item_id/i);
@@ -29,7 +39,6 @@ test("only the tracked piece sold on the source invoice can be returned", () => 
 });
 
 test("a physical piece may be returned again after it is resold on a different invoice", () => {
-  const resaleFix = read("supabase/migrations/20261020125000_gold_credit_note_stock_return_resale_fix.sql");
   assert.match(resaleFix, /drop constraint if exists credit_note_inventory_returns_tenant_id_inventory_item_id_key/i);
   assert.match(resaleFix, /unique index if not exists credit_note_inventory_returns_sale_piece_uidx/i);
   assert.match(resaleFix, /r\.invoice_id=v_note\.invoice_id/i);
