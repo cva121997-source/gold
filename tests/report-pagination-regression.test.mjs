@@ -8,7 +8,7 @@ const docs = readFileSync(join(process.cwd(), "docs/IMPLEMENTATION_STATUS.md"), 
 test("report source reads use explicit pages and fail visibly at a hard safety limit", () => {
   assert.match(page, /async function fetchAllPages/);
   assert.match(page, /pageSize=1000,maxRows=50000/);
-  assert.match(page, /.range(from,to)/);
+  assert.match(page, /\.range\(from,\s*to\)/);
   assert.match(page, /50,000-record safety limit/);
   assert.doesNotMatch(page, /.limit(2000)/);
 });
