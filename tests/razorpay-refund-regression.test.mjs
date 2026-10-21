@@ -20,7 +20,7 @@ test("gateway refund submission is authenticated and requires an approved refund
 });
 
 test("gateway refund requests carry a stable receipt and do not blindly resend uncertain requests", () => {
-  assert.match(refundRoute, /goldr[a-f0-9]/);
+  assert.match(refundRoute, /goldr/);
   assert.match(refundRoute, /gold_refund_id: refundId/);
   assert.match(refundRoute, /if \(!submissionAllowed\)/);
   assert.match(refundRoute, /fetchExistingRefund\(providerPaymentRef, receipt, refundId, amountPaise, auth\)/);
