@@ -26,14 +26,14 @@ test("reports include issued credit notes, collection breakdown and scoped CSV e
  assert.match(page,/gold-report-"\+fromDate\+"-to-"\+toDate/);
  assert.match(page,/replaceAll\('"','""'\)/);
  assert.match(page,/\\ufeff/);
- assert.match(page,/queries are capped at 2,000 records per source/i);
+ assert.match(page,/50,000-record safety limit per source/i);
  assert.match(dashboard,/href: "\/reports"/);
 });
 
 test("report metrics use actual returned tenant-scoped records instead of hard-coded values",()=>{
- assert.match(page,/setPayments\(\(p\.data\?\?\[\]\) as Payment\[\]\)/);
- assert.match(page,/setInvoices\(\(i\.data\?\?\[\]\) as Invoice\[\]\)/);
- assert.match(page,/setCreditNotes\(\(cn\.data\?\?\[\]\) as CreditNote\[\]\)/);
+ assert.match(page,/setPayments\(paymentsData\)/);
+ assert.match(page,/setInvoices\(invoicesData\)/);
+ assert.match(page,/setCreditNotes\(creditData\)/);
  assert.match(page,/setCustomersCount\(c\.count\?\?0\)/);
  assert.match(page,/setItemsCount\(stock\.count\?\?0\)/);
 });
