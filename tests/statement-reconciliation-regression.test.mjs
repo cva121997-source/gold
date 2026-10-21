@@ -39,6 +39,8 @@ test("CSV workspace validates input, previews before import, and never rewrites 
   assert.match(page, /Up to 1,000 rows \/ 2 MB per import/);
   assert.match(page, /No ledger entries have been changed/);
   assert.match(page, /import_reconciliation_statement_lines/);
+  assert.match(page, /range\(from, Math\.min\(from \+ 999, 50000\)\)/);
+  assert.match(page, /all\.length > 50000/);
   assert.match(page, /Unmatched lines may be settlement transfers/);
   assert.match(dashboard, /href: "\/reconciliation\/statements"/);
   assert.doesNotMatch(page, /\.from\("payments"\)\.update|\.from\("payments"\)\.insert/);
