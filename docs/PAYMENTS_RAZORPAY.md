@@ -54,6 +54,23 @@ Shop owners can activate a zero-cost plan/trial directly. Paid plans open Razorp
 
 Test subscription creation, invalid webhook signatures, duplicate/replayed event IDs, activation, charge, pause/halt, cancellation, and old-event replay in **Razorpay test mode** before live billing. The integration is code-complete for the happy-path flow, but production behaviour still depends on valid merchant configuration, active paid plan prices, webhook event selection and provider test results.
 
+## Gateway refunds (merchant test mode required)
+
+After an authorized owner/manager/accountant approves a refund request, the Refunds screen exposes **Submit Razorpay refund** for a confirmed payment whose provider is Razorpay. The server validates the refund and original payment in a locked database function, reserves the request before making the provider call, and sends amount in paise with a stable receipt and notes containing Gold's refund identifier. Do not mark gateway refunds complete through the manual cash/bank payout action.
+
+Register these refund events on the same signed webhook URL:
+
+- `refund.created`
+- `refund.processed`
+- `refund.failed`
+- `refund.speed_changed`
+
+The handler validates the HMAC signature on the raw request body before persisting the event, and deduplicates provider event IDs. The database applies the provider event to a single matching refund and a confirmed Razorpay payment; unmatched or ambiguous events are left unprocessed for reconciliation rather than being assigned to the first plausible refund.
+
+The Razorpay Payment Refunds API does not document the custom idempotency header used by RazorpayX payouts. Therefore, if a request times out or Gold already has a refund in `processing`, the retry path looks up existing refunds using the stable receipt and Gold note. It will **not blindly POST a second refund** when it cannot find an existing provider result. Check the Razorpay Dashboard, then reconcile; unknown provider outcomes need human review before any separate retry is initiated.
+
+Test successful processing, a pending refund, a failed refund, repeated webhooks, invalid signatures, network timeout/reconciliation and two same-amount refunds on one payment in Razorpay test mode. Refund creation and callback code is implemented, but real merchant-account behavior remains unverified until these tests pass.
+
 ## Still not supplied by this integration
 
-The repository does not contain merchant credentials and cannot verify provider-side checkout without them. Gateway refunds, full provider settlement reconciliation, dispute handling and business/legal review of scheme terms and tax rules remain separate tasks.
+The repository does not contain merchant credentials and cannot verify provider-side checkout without them. Approved gateway refunds are implemented through a server-side Razorpay API route and signed `refund.created`, `refund.processed`, `refund.failed` and `refund.speed_changed` webhook events. The route writes a stable receipt and Gold refund identifier, and reconciles a processing refund against Razorpay's refund list instead of blindly submitting a second payout if a request outcome is uncertain. Configure refund events on the same `/api/payments/razorpay/webhook` endpoint. No merchant test credentials or real refund test are available in the repository environment. Full provider settlement reconciliation, dispute handling and business/legal review of scheme terms and tax rules remain separate tasks.
