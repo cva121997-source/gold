@@ -101,12 +101,21 @@ export default function StatementReconciliationPage() {
 
 const loadLines = useCallback(async (shopId: string, reconId: string) => {
     if (!shopId || !reconId) { setLines([]); return; }
-    const { data, error: queryError } = await createClient().from("reconciliation_statement_lines")
-      .select("id,transaction_date,provider_reference,description,statement_amount,currency,line_status,matched_ledger_amount,difference_amount,created_at")
-      .eq("tenant_id", shopId).eq("reconciliation_id", reconId)
-      .order("transaction_date", { ascending: false }).limit(5000);
-    if (queryError) throw queryError;
-    setLines((data ?? []) as StatementLine[]);
+    const db = createClient();
+    const all: StatementLine[] = [];
+    for (let from = 0; from <= 50000; from += 1000) {
+      const { data, error: queryError } = await db.from("reconciliation_statement_lines")
+        .select("id,transaction_date,provider_reference,description,statement_amount,currency,line_status,matched_ledger_amount,difference_amount,created_at")
+        .eq("tenant_id", shopId).eq("reconciliation_id", reconId)
+        .order("transaction_date", { ascending: false }).order("created_at", { ascending: false })
+        .range(from, Math.min(from + 999, 50000));
+      if (queryError) throw queryError;
+      const page = (data ?? []) as StatementLine[];
+      all.push(...page);
+      if (all.length > 50000) throw new Error("This statement view exceeds 50,000 lines. Narrow or archive older reconciliation periods before loading all detail.");
+      if (page.length < 1000) { setLines(all); return; }
+    }
+    throw new Error("This statement view exceeds 50,000 lines. Narrow or archive older reconciliation periods before loading all detail.");
   }, []);
 
 const loadRecords = useCallback(async (shopId: string, preferId?: string) => {
