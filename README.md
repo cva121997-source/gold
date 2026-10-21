@@ -47,3 +47,10 @@ SQL migration files are in [supabase/migrations](supabase/migrations). The migra
 ## Deployment
 
 Use the `main` branch for production workflow. Configure required environment variables and auth redirect URLs in the hosting project, set up external provider webhooks/workers only after credentials exist, and verify the actual production URL. A successful CI build does not prove that external credentials, live payments, scheduled jobs or production deployment are configured.
+
+
+## Statement reconciliation
+
+The `/reconciliation/statements` workspace accepts operator-supplied CSV statements (up to 1,000 lines per import), previews the parsed rows, deduplicates imports, and matches confirmed Razorpay payments by provider reference, INR currency and amount. Unmatched, duplicate, ambiguous and amount-mismatch rows remain visible. A matching statement total does not close a period while individual lines remain unresolved, and the import never creates or changes customer payment records.
+
+This is assisted statement matching, not automated settlement accounting: it does not yet reconcile gateway fees, disputes, all settlement payout formats or bank feeds, and it requires staff to obtain and upload the provider statement. See [implementation status](docs/IMPLEMENTATION_STATUS.md) and the [operations runbook](docs/OPERATIONS_RUNBOOK.md).
