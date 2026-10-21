@@ -99,7 +99,17 @@ export default function StatementReconciliationPage() {
     return out;
   }, [lines]);
 
-  const loadRecords = useCallback(async (shopId: string, preferId?: string) => {
+const loadLines = useCallback(async (shopId: string, reconId: string) => {
+    if (!shopId || !reconId) { setLines([]); return; }
+    const { data, error: queryError } = await createClient().from("reconciliation_statement_lines")
+      .select("id,transaction_date,provider_reference,description,statement_amount,currency,line_status,matched_ledger_amount,difference_amount,created_at")
+      .eq("tenant_id", shopId).eq("reconciliation_id", reconId)
+      .order("transaction_date", { ascending: false }).limit(5000);
+    if (queryError) throw queryError;
+    setLines((data ?? []) as StatementLine[]);
+  }, []);
+
+const loadRecords = useCallback(async (shopId: string, preferId?: string) => {
     if (!shopId) { setRecords([]); setReconciliationId(""); setLines([]); return; }
     const { data, error: queryError } = await createClient().from("reconciliation_records")
       .select("id,provider,period_start,period_end,branch_id,expected_amount,actual_amount,difference_amount,status")
@@ -110,17 +120,7 @@ export default function StatementReconciliationPage() {
     const next = preferId && result.some(r => r.id === preferId) ? preferId : result[0]?.id ?? "";
     setReconciliationId(next);
     if (next) await loadLines(shopId, next); else setLines([]);
-  }, []);
-
-  const loadLines = useCallback(async (shopId: string, reconId: string) => {
-    if (!shopId || !reconId) { setLines([]); return; }
-    const { data, error: queryError } = await createClient().from("reconciliation_statement_lines")
-      .select("id,transaction_date,provider_reference,description,statement_amount,currency,line_status,matched_ledger_amount,difference_amount,created_at")
-      .eq("tenant_id", shopId).eq("reconciliation_id", reconId)
-      .order("transaction_date", { ascending: false }).limit(5000);
-    if (queryError) throw queryError;
-    setLines((data ?? []) as StatementLine[]);
-  }, []);
+  }, [loadLines]);
 
   useEffect(() => {
     let cancelled = false;
