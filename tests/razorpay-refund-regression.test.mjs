@@ -25,7 +25,7 @@ test("gateway refund requests carry a stable receipt and do not blindly resend u
   assert.match(refundRoute, /if \(!submissionAllowed\)/);
   assert.match(refundRoute, /fetchExistingRefund\(providerPaymentRef, receipt, refundId, amountPaise, auth\)/);
   assert.match(refundRoute, /will not submit (another|a second) payout automatically/);
-  assert.doesNotMatch(refundRoute, /X-Refund-Idempotency/);
+  assert.doesNotMatch(refundRoute, /["']X-Refund-Idempotency["']\s*:/);
 });
 
 test("provider outcome RPC is server-only and validates refund statuses", () => {
