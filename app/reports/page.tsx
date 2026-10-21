@@ -13,6 +13,17 @@ type Invoice={id:string;invoice_number:string;status:string;total_amount:number;
 type CreditNote={id:string;credit_note_number:string;status:string;total_amount:number;created_at:string;issued_at:string|null;branch_id:string|null};
 type Enrolment={id:string;status:string;maturity_date:string|null;start_date:string;branch_id:string};
 type Installment={id:string;status:string;amount_due:number;amount_paid:number;due_date:string;branch_id:string};
+type PageResult<T>={data:T[]|null;error:{message:string}|null};
+async function fetchAllPages<T>(loadPage:(from:number,to:number)=>Promise<PageResult<T>>,pageSize=1000,maxRows=50000):Promise<T[]>{
+ const rows:T[]=[];
+ for(let from=0;from<maxRows;from+=pageSize){
+  const result=await loadPage(from,Math.min(from+pageSize-1,maxRows-1));
+  if(result.error)throw result.error;
+  const page=result.data??[];rows.push(...page);
+  if(page.length<pageSize)return rows;
+ }
+ throw new Error("This report exceeds the 50,000-record safety limit for at least one source. Narrow the reporting scope or request a dedicated accounting export.");
+}
 
 function dateInIndia(d:Date){return new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Kolkata",year:"numeric",month:"2-digit",day:"2-digit"}).format(d);}
 function startIndiaDay(day:string){return new Date(day+"T00:00:00+05:30").toISOString();}
@@ -54,23 +65,28 @@ export default function ReportsPage(){
   setReportsLoading(true);setError("");
   try{
    const supabase=createClient();const start=startIndiaDay(fromDate);const end=startIndiaDay(nextDate(toDate));
-   let paymentQuery=supabase.from("payments").select("id,amount,status,payment_method,created_at,confirmed_at,branch_id").eq("tenant_id",tenantId).gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false}).limit(2000);
-   let invoiceQuery=supabase.from("invoices").select("id,invoice_number,status,total_amount,invoice_date,created_at,branch_id").eq("tenant_id",tenantId).gte("invoice_date",fromDate).lte("invoice_date",toDate).order("created_at",{ascending:false}).limit(2000);
-   let creditQuery=supabase.from("credit_notes").select("id,credit_note_number,status,total_amount,created_at,issued_at,branch_id").eq("tenant_id",tenantId).eq("status","issued").gte("issued_at",start).lt("issued_at",end).order("issued_at",{ascending:false}).limit(2000);
-   let enrolmentQuery=supabase.from("scheme_enrolments").select("id,status,maturity_date,start_date,branch_id").eq("tenant_id",tenantId).limit(2000);
-   let installmentQuery=supabase.from("scheme_installments").select("id,status,amount_due,amount_paid,due_date,branch_id").eq("tenant_id",tenantId).limit(2000);
-   let customerQuery=supabase.from("tenant_customers").select("id",{count:"exact",head:true}).eq("tenant_id",tenantId);
-   let stockQuery=supabase.from("inventory_items").select("id",{count:"exact",head:true}).eq("tenant_id",tenantId);
-   if(branchId){paymentQuery=paymentQuery.eq("branch_id",branchId);invoiceQuery=invoiceQuery.eq("branch_id",branchId);creditQuery=creditQuery.eq("branch_id",branchId);enrolmentQuery=enrolmentQuery.eq("branch_id",branchId);installmentQuery=installmentQuery.eq("branch_id",branchId);customerQuery=customerQuery.eq("branch_id",branchId);stockQuery=stockQuery.eq("branch_id",branchId);}
-   const [p,i,cn,e,s,c,stock,b]=await Promise.all([
-    paymentQuery,invoiceQuery,creditQuery,enrolmentQuery,installmentQuery,customerQuery,stockQuery,
-    supabase.from("branches").select("id,name,branch_code").eq("tenant_id",tenantId).eq("is_active",true).order("name")
-   ]);
-   if(p.error||i.error||cn.error||e.error||s.error||c.error||stock.error||b.error)throw new Error("Report queries failed");
-   setPayments((p.data??[]) as Payment[]);setInvoices((i.data??[]) as Invoice[]);setCreditNotes((cn.data??[]) as CreditNote[]);
-   setEnrolments((e.data??[]) as Enrolment[]);setInstallments((s.data??[]) as Installment[]);
-   setCustomersCount(c.count??0);setItemsCount(stock.count??0);setBranches((b.data??[]) as Branch[]);setLastRefreshed(new Date());
-  }catch{setError("Some report data could not be loaded. Check table permissions, RLS and the date range.");}
+    let paymentQuery=supabase.from("payments").select("id,amount,status,payment_method,created_at,confirmed_at,branch_id").eq("tenant_id",tenantId).gte("created_at",start).lt("created_at",end).order("created_at",{ascending:false});
+    let invoiceQuery=supabase.from("invoices").select("id,invoice_number,status,total_amount,invoice_date,created_at,branch_id").eq("tenant_id",tenantId).gte("invoice_date",fromDate).lte("invoice_date",toDate).order("created_at",{ascending:false});
+    let creditQuery=supabase.from("credit_notes").select("id,credit_note_number,status,total_amount,created_at,issued_at,branch_id").eq("tenant_id",tenantId).eq("status","issued").gte("issued_at",start).lt("issued_at",end).order("issued_at",{ascending:false});
+    let enrolmentQuery=supabase.from("scheme_enrolments").select("id,status,maturity_date,start_date,branch_id").eq("tenant_id",tenantId).order("start_date",{ascending:false});
+    let installmentQuery=supabase.from("scheme_installments").select("id,status,amount_due,amount_paid,due_date,branch_id").eq("tenant_id",tenantId).order("due_date");
+    let customerQuery=supabase.from("tenant_customers").select("id",{count:"exact",head:true}).eq("tenant_id",tenantId);
+    let stockQuery=supabase.from("inventory_items").select("id",{count:"exact",head:true}).eq("tenant_id",tenantId);
+    if(branchId){paymentQuery=paymentQuery.eq("branch_id",branchId);invoiceQuery=invoiceQuery.eq("branch_id",branchId);creditQuery=creditQuery.eq("branch_id",branchId);enrolmentQuery=enrolmentQuery.eq("branch_id",branchId);installmentQuery=installmentQuery.eq("branch_id",branchId);customerQuery=customerQuery.eq("branch_id",branchId);stockQuery=stockQuery.eq("branch_id",branchId);}
+    const [paymentsData,invoicesData,creditData,enrolmentData,installmentData,c,stock,b]=await Promise.all([
+     fetchAllPages<Payment>(async(from,to)=>await paymentQuery.range(from,to)),
+     fetchAllPages<Invoice>(async(from,to)=>await invoiceQuery.range(from,to)),
+     fetchAllPages<CreditNote>(async(from,to)=>await creditQuery.range(from,to)),
+     fetchAllPages<Enrolment>(async(from,to)=>await enrolmentQuery.range(from,to)),
+     fetchAllPages<Installment>(async(from,to)=>await installmentQuery.range(from,to)),
+     customerQuery,stockQuery,
+     supabase.from("branches").select("id,name,branch_code").eq("tenant_id",tenantId).eq("is_active",true).order("name")
+    ]);
+    if(c.error||stock.error||b.error)throw new Error("Report queries failed");
+    setPayments(paymentsData);setInvoices(invoicesData);setCreditNotes(creditData);
+    setEnrolments(enrolmentData);setInstallments(installmentData);
+    setCustomersCount(c.count??0);setItemsCount(stock.count??0);setBranches((b.data??[]) as Branch[]);setLastRefreshed(new Date());
+  }catch(e){setError(e instanceof Error&&e.message.includes("50,000-record safety limit")?e.message:"Some report data could not be loaded. Check table permissions, RLS and the date range.");}
   finally{setReportsLoading(false);}
  },[tenantId,fromDate,toDate,branchId]);
  useEffect(()=>{void load()},[load]);
@@ -122,7 +138,7 @@ export default function ReportsPage(){
     <section className="panel"><h2>Collections by payment method</h2>{paymentsByMethod.length===0?<p className="small muted">No confirmed collections returned for this period.</p>:<div style={{display:"grid",gap:10,marginTop:12}}>{paymentsByMethod.map(([method,data])=><div className="list-card" key={method}><div><strong>{method.replaceAll("_"," ")}</strong><div className="small muted">{data.count} payment(s)</div></div><strong>{money(data.amount)}</strong></div>)}</div>}</section>
     <section className="panel"><h2>Due-date watchlist</h2>{installments.filter(i=>!["paid","waived","cancelled"].includes(i.status)).sort((a,b)=>a.due_date.localeCompare(b.due_date)).slice(0,20).map(i=><div key={i.id} className="list-card" style={{marginTop:8}}><div><strong>{i.due_date}</strong><div className="small muted">{i.status}</div></div><strong>{money(Math.max(0,Number(i.amount_due)-Number(i.amount_paid)))}</strong></div>)}{installments.length===0&&<p className="small muted">No instalment schedules found.</p>}</section>
    </div>
-   <p className="small muted" style={{marginTop:14}}>Branch: {branches.find(b=>b.id===branchId)?.name??"All accessible branches"} · Last refreshed: {lastRefreshed?.toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})??"—"}. Detail queries are capped at 2,000 records per source; use pagination before using exports for formal accounting and tax filing.</p>
+   <p className="small muted" style={{marginTop:14}}>Branch: {branches.find(b=>b.id===branchId)?.name??"All accessible branches"} · Last refreshed: {lastRefreshed?.toLocaleString("en-IN",{timeZone:"Asia/Kolkata"})??"—"}. Detail queries are paginated in 1,000-row batches up to a 50,000-record safety limit per source. Exports are for operational review, not a substitute for reviewed accounting/tax filings; use a dedicated accounting export for larger data sets.</p>
   </>}
  </div></main>;
 }
