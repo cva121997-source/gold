@@ -16,10 +16,12 @@ type Installment={id:string;status:string;amount_due:number;amount_paid:number;d
 type PageResult<T>={data:T[]|null;error:{message:string}|null};
 async function fetchAllPages<T>(loadPage:(from:number,to:number)=>Promise<PageResult<T>>,pageSize=1000,maxRows=50000):Promise<T[]>{
  const rows:T[]=[];
- for(let from=0;from<maxRows;from+=pageSize){
-  const result=await loadPage(from,Math.min(from+pageSize-1,maxRows-1));
+ // Read one additional row at the cap so exactly 50,000 rows are accepted, but more are rejected.
+ for(let from=0;from<=maxRows;from+=pageSize){
+  const result=await loadPage(from,Math.min(from+pageSize-1,maxRows));
   if(result.error)throw result.error;
   const page=result.data??[];rows.push(...page);
+  if(rows.length>maxRows)throw new Error("This report exceeds the 50,000-record safety limit for at least one source. Narrow the reporting scope or request a dedicated accounting export.");
   if(page.length<pageSize)return rows;
  }
  throw new Error("This report exceeds the 50,000-record safety limit for at least one source. Narrow the reporting scope or request a dedicated accounting export.");
