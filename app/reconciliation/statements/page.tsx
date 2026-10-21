@@ -101,11 +101,10 @@ export default function StatementReconciliationPage() {
     if (queryError) throw queryError;
     const result = (data ?? []) as Reconciliation[];
     setRecords(result);
-    const next = preferId && result.some(r => r.id === preferId) ? preferId
-      : result.some(r => r.id === reconciliationId) ? reconciliationId : result[0]?.id ?? "";
+    const next = preferId && result.some(r => r.id === preferId) ? preferId : result[0]?.id ?? "";
     setReconciliationId(next);
     if (next) await loadLines(shopId, next); else setLines([]);
-  }, [reconciliationId]);
+  }, []);
 
   const loadLines = useCallback(async (shopId: string, reconId: string) => {
     if (!shopId || !reconId) { setLines([]); return; }
@@ -243,7 +242,7 @@ export default function StatementReconciliationPage() {
         <div className="stat-card"><span className="small muted">Matched</span><strong>{lineCounts.matched}</strong></div>
         <div className="stat-card"><span className="small muted">Amount mismatch</span><strong>{lineCounts.amount_mismatch}</strong></div>
         <div className="stat-card"><span className="small muted">Unmatched</span><strong>{lineCounts.unmatched}</strong></div>
-        <div className="stat-card"><span className="small muted">Duplicate refs / rows</span><strong>{lineCounts.duplicate_reference + Math.max(0, lines.filter(l=>l.line_status==="duplicate_reference").length)}</strong></div>
+        <div className="stat-card"><span className="small muted">Duplicate refs / rows</span><strong>{lineCounts.duplicate_reference}</strong></div>
         <div className="stat-card"><span className="small muted">Ambiguous</span><strong>{lineCounts.ambiguous_match}</strong></div>
       </div>
       {lines.length===0?<p className="muted" style={{marginTop:16}}>No statement lines imported yet.</p>:<div style={{overflowX:"auto",marginTop:16}}><table className="data-table"><thead><tr><th>Date</th><th>Provider reference</th><th>Statement amount</th><th>Ledger amount</th><th>Difference</th><th>Match result</th><th>Description</th></tr></thead><tbody>{lines.map(line=><tr key={line.id}><td>{line.transaction_date}</td><td>{line.provider_reference}</td><td>{money(line.statement_amount,line.currency)}</td><td>{line.matched_ledger_amount===null?"—":money(line.matched_ledger_amount,line.currency)}</td><td>{line.difference_amount===null?"—":money(line.difference_amount,line.currency)}</td><td><span className={"status-pill status-"+line.line_status}>{line.line_status.replaceAll("_"," ")}</span></td><td>{line.description||"—"}</td></tr>)}</tbody></table></div>}
