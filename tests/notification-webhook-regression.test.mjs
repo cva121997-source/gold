@@ -7,6 +7,7 @@ const read = (path) => readFileSync(join(process.cwd(), path), "utf8");
 const webhook = read("app/api/notifications/webhooks/[provider]/route.ts");
 const delivery = read("app/api/notifications/deliver/route.ts");
 const schema = read("supabase/migrations/20261020123000_gold_notification_provider_webhooks.sql");
+const policy = read("supabase/migrations/20261021100000_gold_notification_provider_events_service_policy.sql");
 const env = read(".env.example");
 const integrations = read("app/api/integrations/status/route.ts");
 
@@ -16,6 +17,9 @@ test("notification provider event ledger is private and replay-safe", () => {
   assert.match(schema, /alter table public\.notification_provider_events enable row level security/i);
   assert.match(schema, /revoke all on public\.notification_provider_events from public,anon,authenticated/i);
   assert.match(schema, /grant all on public\.notification_provider_events to service_role/i);
+  assert.match(policy, /create policy notification_provider_events_service_role/i);
+  assert.match(policy, /for all\s+to service_role\s+using \(true\)\s+with check \(true\)/i);
+  assert.match(policy, /revoke all on public\.notification_provider_events from public,anon,authenticated/i);
   assert.doesNotMatch(schema, /raw_payload|message_body|recipient_email/i);
 });
 
