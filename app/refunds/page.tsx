@@ -130,6 +130,33 @@ export default function RefundsPage() {
     finally { setSaving(false); }
   }
 
+  async function gatewayRefund(refund: Refund) {
+    setError(""); setNotice(""); setSaving(true);
+    try {
+      const response = await fetch("/api/payments/razorpay/refund", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId, refundId: refund.id }),
+        cache: "no-store"
+      });
+      const raw: unknown = await response.json().catch(() => null);
+      const body = raw && typeof raw === "object" && !Array.isArray(raw)
+        ? raw as { ok?: unknown; status?: unknown; message?: unknown; error?: unknown }
+        : {};
+      const message = typeof body.message === "string" ? body.message
+        : typeof body.error === "string" ? body.error : "Razorpay refund status could not be reconciled.";
+      if (!response.ok && response.status !== 202) {
+        setError(message);
+      } else {
+        setNotice(message);
+      }
+      await load();
+    } catch {
+      setError("Refund request could not be confirmed. Refresh or reconcile the existing Razorpay refund before taking any further action.");
+      await load();
+    } finally { setSaving(false); }
+  }
+
   return <main><div className="page-wrap">
     <Link className="link-text small" href="/dashboard"><ArrowLeft size={13} style={{ display: "inline", verticalAlign: "middle" }} /> Back to workspace</Link>
     <div style={{ marginTop: 20, marginBottom: 24 }}>
@@ -193,7 +220,14 @@ export default function RefundsPage() {
                   </div>
                   <button className="btn btn-primary" style={{ marginTop: 10 }} type="button" disabled={saving} onClick={() => void completeManual(refund)}>Record actual payout</button>
                 </div>}
-                {refund.status === "approved" && isGateway && <p className="small muted" style={{ marginBottom: 0 }}>Gateway payout is not completed here. It requires a verified provider refund workflow; approval alone is not proof of refund.</p>}
+                {canReview && isGateway && ["approved", "processing"].includes(refund.status) && <div style={{ marginTop: 12 }}>
+                  <p className="small muted" style={{ marginBottom: 8 }}>{refund.status === "approved"
+                    ? "This submits the approved refund to Razorpay. Gold records completion only after a provider response or signed webhook confirms the outcome."
+                    : "The gateway request is already processing. This action checks Razorpay for the existing refund and does not create a second refund automatically."}</p>
+                  <button className="btn btn-primary" type="button" disabled={saving} onClick={() => void gatewayRefund(refund)}>
+                    <RefreshCw size={14} /> {refund.status === "approved" ? "Submit Razorpay refund" : "Reconcile Razorpay refund"}
+                  </button>
+                </div>}
                 {refund.external_reference && <p className="small muted" style={{ marginBottom: 0 }}>Payout reference: {refund.external_reference}</p>}
                 <p className="small muted" style={{ marginBottom: 0, marginTop: 8 }}>Audit ID: {refund.id}</p>
               </article>;
