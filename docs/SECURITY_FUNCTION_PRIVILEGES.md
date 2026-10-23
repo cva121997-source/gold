@@ -20,6 +20,7 @@ After applying the migration, the live database showed:
 - 33 private workflow implementations, all `SECURITY DEFINER`.
 - Zero anonymous execution grants on either set.
 - All 33 private implementations retain `auth.uid()` checks and a tenant/branch/role helper.
+- A live read-only smoke test invoked each public wrapper with no authenticated identity and verified all 33 rejected the call with `Authentication required` before reaching business logic.
 - The Supabase Security Advisor returned no findings.
 
 Regression tests in `tests/function-default-privileges-regression.test.mjs` and `tests/private-workflow-rpc-regression.test.mjs` protect the default grants and wrapper migration structure. This is not a replacement for authenticated end-to-end tests with separate tenants and branch roles.
