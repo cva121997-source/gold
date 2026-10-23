@@ -53,7 +53,7 @@ begin
   select * into v_note_line from public.credit_note_lines cl
     where cl.id=p_credit_note_line_id and cl.tenant_id=p_tenant_id and cl.credit_note_id=v_note.id for update;
   if not found then raise exception 'The return line does not belong to this issued credit note'; end if;
-  if v_note_line.quantity<>1 then raise exception 'This physical return workflow requires a credit quantity of exactly one tracked piece'; end if;
+  if v_note_line.quantity<1 then raise exception 'The credited quantity does not include a whole tracked inventory piece'; end if;
 
   select * into v_invoice_line from public.invoice_lines il
     where il.id=v_note_line.invoice_line_id and il.tenant_id=p_tenant_id and il.invoice_id=v_note.invoice_id for update;

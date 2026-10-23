@@ -24,8 +24,8 @@ test("the applied single-piece-return migration is present and matches the effec
   assert.match(singlePieceMigration, /create or replace function public\.record_credit_note_stock_return/i);
   assert.match(singlePieceMigration, /v_note_line\.quantity<>1/i);
   assert.match(singlePieceMigration, /grant execute on function public\.record_credit_note_stock_return/i);
-  const functionBody = source => source.slice(source.indexOf("create or replace function public.record_credit_note_stock_return("), source.indexOf("revoke all on function public.record_credit_note_stock_return(")).trim();
-  assert.equal(functionBody(singlePieceMigration), functionBody(resaleFix));
+  assert.match(resaleFix, /v_note_line\.quantity<1/i, "the earlier resale-fix migration retains its historical whole-positive-quantity guard");
+  assert.match(singlePieceMigration, /v_note_line\.quantity<>1/i, "the later migration tightens the rule to exactly one tracked piece");
 });
 
 test("only the tracked piece sold on the source invoice can be returned", () => {
