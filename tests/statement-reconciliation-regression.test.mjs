@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = path => readFileSync(join(process.cwd(), path), "utf8");
-const schema = read("supabase/migrations/20261021102000_gold_statement_line_reconciliation.sql");
-const lineReview = read("supabase/migrations/20261021103000_gold_statement_reconciliation_line_review.sql");
+const schema = read("supabase/migrations/20261021072640_gold_statement_line_reconciliation.sql");
+const lineReview = read("supabase/migrations/20261021073158_gold_statement_reconciliation_line_review.sql");
 const page = read("app/reconciliation/statements/page.tsx");
 const dashboard = read("app/dashboard/page.tsx");
 

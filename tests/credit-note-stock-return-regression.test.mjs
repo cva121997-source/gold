@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = path => readFileSync(join(process.cwd(), path), "utf8");
-const sql = read("supabase/migrations/20261020124000_gold_credit_note_stock_returns.sql");
-const resaleFix = read("supabase/migrations/20261020125000_gold_credit_note_stock_return_resale_fix.sql");
+const sql = read("supabase/migrations/20261020124705_gold_credit_note_stock_returns.sql");
+const resaleFix = read("supabase/migrations/20261020125220_gold_credit_note_stock_return_resale_fix.sql");
 const singlePieceMigration = read("supabase/migrations/20261021071508_gold_credit_note_single_piece_return.sql");
 const page = read("app/credit-notes/page.tsx");
 const pos = read("app/pos/page.tsx");

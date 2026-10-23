@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const read=(p)=>readFileSync(join(process.cwd(),p),"utf8");
-const migration=read("supabase/migrations/20261017164300_gold_stocktake_discrepancy_resolution.sql");
+const migration=read("supabase/migrations/20261017162440_gold_stocktake_discrepancy_resolution.sql");
 const page=read("app/stocktakes/page.tsx");
 
 test("stocktake missing-piece resolutions require owner/manager review and a reason",()=>{

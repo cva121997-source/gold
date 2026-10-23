@@ -5,9 +5,9 @@ import { join } from "node:path";
 
 const root = process.cwd();
 const read = (path) => readFileSync(join(root, path), "utf8");
-const lifecycleSql = read("supabase/migrations/20261017103530_gold_lifecycle_and_refund_controls.sql");
-const consentSql = read("supabase/migrations/20261017103610_gold_customer_consent_history_rpc.sql");
-const creditNoteSql = read("supabase/migrations/20261017145000_gold_credit_note_workflow.sql");
+const lifecycleSql = read("supabase/migrations/20261017142647_gold_lifecycle_and_refund_controls.sql");
+const consentSql = read("supabase/migrations/20261017143042_gold_customer_consent_history_rpc.sql");
+const creditNoteSql = read("supabase/migrations/20261017144430_gold_credit_note_workflow.sql");
 
 test("customer CRM history tables enforce row-level security and append-only client writes", () => {
   assert.match(lifecycleSql, /create table if not exists public\.customer_notes/i);

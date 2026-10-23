@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read=(path)=>readFileSync(join(process.cwd(),path),"utf8");
-const migration=read("supabase/migrations/20261017164200_gold_supplier_price_variance_approval.sql");
+const migration=read("supabase/migrations/20261017162111_gold_supplier_price_variance_approval.sql");
 const page=read("app/supplier-bills/page.tsx");
 
 test("PO-linked supplier price/tax variances require an independent reasoned approval",()=>{

@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read=(path)=>readFileSync(join(process.cwd(),path),"utf8");
-const workflow=read("supabase/migrations/20261017163000_gold_branch_transfer_approval_workflow.sql");
-const integrity=read("supabase/migrations/20261017163200_gold_branch_transfer_tenant_integrity.sql");
-const snapshot=read("supabase/migrations/20261017163100_gold_branch_transfer_item_snapshots.sql");
+const workflow=read("supabase/migrations/20261017160851_gold_branch_transfer_approval_workflow.sql");
+const integrity=read("supabase/migrations/20261017161141_gold_branch_transfer_tenant_integrity.sql");
+const snapshot=read("supabase/migrations/20261017161003_gold_branch_transfer_item_snapshots.sql");
 const page=read("app/transfers/page.tsx");
 const inventory=read("app/inventory/page.tsx");
 const dashboard=read("app/dashboard/page.tsx");

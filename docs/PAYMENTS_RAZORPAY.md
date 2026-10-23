@@ -37,7 +37,7 @@ A successful browser callback is not proof of payment. The UI intentionally says
 
 ## SQL
 
-The gateway migration is `supabase/migrations/202610170019_gold_razorpay_gateway_and_security_hardening.sql`. It was applied to the connected Gold Supabase project. Keep this file committed with the application and review it whenever database schema changes are made.
+The gateway migration is `supabase/migrations/20261017102435_gold_razorpay_gateway_and_security_hardening.sql`. It was applied to the connected Gold Supabase project. Keep this file committed with the application and review it whenever database schema changes are made.
 
 
 ## SaaS subscription billing

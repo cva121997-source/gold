@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = (path) => readFileSync(join(process.cwd(), path), "utf8");
-const schema = read("supabase/migrations/20261017161000_gold_inventory_stocktake_workflow.sql");
+const schema = read("supabase/migrations/20261017155739_gold_inventory_stocktake_workflow.sql");
 const page = read("app/stocktakes/page.tsx");
 const dashboard = read("app/dashboard/page.tsx");
 

@@ -6,8 +6,8 @@ import { join } from "node:path";
 const read = (path) => readFileSync(join(process.cwd(), path), "utf8");
 const webhook = read("app/api/notifications/webhooks/[provider]/route.ts");
 const delivery = read("app/api/notifications/deliver/route.ts");
-const schema = read("supabase/migrations/20261020123000_gold_notification_provider_webhooks.sql");
-const policy = read("supabase/migrations/20261021100000_gold_notification_provider_events_service_policy.sql");
+const schema = read("supabase/migrations/20261020122231_gold_notification_provider_webhooks.sql");
+const policy = read("supabase/migrations/20261021072056_gold_notification_provider_events_service_policy.sql");
 const env = read(".env.example");
 const integrations = read("app/api/integrations/status/route.ts");
 

@@ -7,9 +7,9 @@ const read = path => readFileSync(join(process.cwd(), path), "utf8");
 const refundRoute = read("app/api/payments/razorpay/refund/route.ts");
 const webhook = read("app/api/payments/razorpay/webhook/route.ts");
 const page = read("app/refunds/page.tsx");
-const initialMigration = read("supabase/migrations/20261020130000_gold_razorpay_gateway_refunds.sql");
-const serverOnlyMigration = read("supabase/migrations/20261020131000_gold_razorpay_refund_server_only.sql");
-const orderingMigration = read("supabase/migrations/20261020132000_gold_razorpay_refund_method_and_ordering.sql");
+const initialMigration = read("supabase/migrations/20261020125926_gold_razorpay_gateway_refunds.sql");
+const serverOnlyMigration = read("supabase/migrations/20261021070336_gold_razorpay_refund_server_only.sql");
+const orderingMigration = read("supabase/migrations/20261021070558_gold_razorpay_refund_method_and_ordering.sql");
 
 test("gateway refund submission is authenticated and requires an approved refund RPC", () => {
   assert.match(refundRoute, /auth\.getUser\(\)/);

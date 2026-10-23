@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const root=process.cwd();
-const hardening=readFileSync(join(root,"supabase/migrations/20261017164400_gold_supplier_bill_creator_and_variance_field_hardening.sql"),"utf8");
+const hardening=readFileSync(join(root,"supabase/migrations/20261017162604_gold_supplier_bill_creator_and_variance_field_hardening.sql"),"utf8");
 const page=readFileSync(join(root,"app/supplier-bills/page.tsx"),"utf8");
 
 test("supplier bill creator and immutable identities cannot be spoofed",()=>{

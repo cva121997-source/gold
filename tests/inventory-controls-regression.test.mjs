@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const read=(p)=>readFileSync(join(process.cwd(),p),"utf8");
-const history=read("supabase/migrations/20261017162000_gold_inventory_valuation_and_reorder_controls.sql");
-const reorder=read("supabase/migrations/20261017162100_gold_inventory_reorder_aggregation.sql");
-const revalue=read("supabase/migrations/20261017162200_gold_audited_inventory_revaluation.sql");
-const baseline=read("supabase/migrations/20261017162300_gold_inventory_valuation_baseline_backfill.sql");
+const history=read("supabase/migrations/20261017160123_gold_inventory_valuation_and_reorder_controls.sql");
+const reorder=read("supabase/migrations/20261017160202_gold_inventory_reorder_aggregation.sql");
+const revalue=read("supabase/migrations/20261017160244_gold_audited_inventory_revaluation.sql");
+const baseline=read("supabase/migrations/20261017160430_gold_inventory_valuation_baseline_backfill.sql");
 const page=read("app/inventory-controls/page.tsx");
 const dashboard=read("app/dashboard/page.tsx");
 

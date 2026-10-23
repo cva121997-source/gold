@@ -4,8 +4,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const read = (path) => readFileSync(join(process.cwd(), path), "utf8");
-const billingSchema = read("supabase/migrations/20261017152000_gold_subscription_billing_gateway.sql");
-const processor = read("supabase/migrations/20261017152100_gold_subscription_webhook_processor.sql");
+const billingSchema = read("supabase/migrations/20261017152248_gold_subscription_billing_gateway.sql");
+const processor = read("supabase/migrations/20261017152337_gold_subscription_webhook_processor.sql");
 const createSubscription = read("app/api/billing/create-subscription/route.ts");
 const cancelSubscription = read("app/api/billing/cancel-subscription/route.ts");
 const subscriptionWebhook = read("app/api/payments/razorpay/subscription-webhook/route.ts");

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-const migration=readFileSync(join(process.cwd(),"supabase/migrations/20261017164500_gold_supplier_bill_void_workflow.sql"),"utf8");
+const migration=readFileSync(join(process.cwd(),"supabase/migrations/20261017162826_gold_supplier_bill_void_workflow.sql"),"utf8");
 const page=readFileSync(join(process.cwd(),"app/supplier-bills/page.tsx"),"utf8");
 
 test("supplier bill voiding is auditable and cannot erase payment history",()=>{

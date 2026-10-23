@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 const read=(p)=>readFileSync(join(process.cwd(),p),"utf8");
-const schema=read("supabase/migrations/20261017164000_gold_supplier_accounts_payable.sql");
+const schema=read("supabase/migrations/20261017161600_gold_supplier_accounts_payable.sql");
 const ui=read("app/supplier-bills/page.tsx");
 const dashboard=read("app/dashboard/page.tsx");
 
