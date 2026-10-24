@@ -176,8 +176,25 @@ test(
     const ownerB = await signIn(config, "tenantBOwner");
     const ids = config.ids;
 
-    await expectVisible(ownerA, "tenants", ids.tenants.a, "tenant A");
-    await expectVisible(ownerB, "tenants", ids.tenants.b, "tenant B");
+    for (const [table, id, label] of [
+      ["tenants", ids.tenants.a, "tenant A"],
+      ["branches", ids.branches.a1, "tenant A branch"],
+      ["products", ids.products.a, "tenant A product"],
+      ["inventory_items", ids.inventoryItems.aBranch1, "tenant A inventory item"],
+      ["sales", ids.sales.aBranch1, "tenant A sale"],
+    ]) {
+      await expectVisible(ownerA, table, id, label);
+    }
+
+    for (const [table, id, label] of [
+      ["tenants", ids.tenants.b, "tenant B"],
+      ["branches", ids.branches.b1, "tenant B branch"],
+      ["products", ids.products.b, "tenant B product"],
+      ["inventory_items", ids.inventoryItems.bBranch1, "tenant B inventory item"],
+      ["sales", ids.sales.bBranch1, "tenant B sale"],
+    ]) {
+      await expectVisible(ownerB, table, id, label);
+    }
 
     for (const [table, id, label] of [
       ["tenants", ids.tenants.b, "tenant B"],
@@ -260,8 +277,25 @@ test(
       "inventory_items",
       ids.inventoryItems.bBranch1,
       "tenant B item",
-      "id, location_label"
+      "id, tenant_id, branch_id, location_label"
     );
+    assert.equal(targetItem.tenant_id, ids.tenants.b);
+    assert.equal(targetItem.branch_id, ids.branches.b1);
+
+    const siblingSale = await expectVisible(
+      ownerA,
+      "sales",
+      ids.sales.aBranch2,
+      "sale in sibling branch A2",
+      "id, branch_id, status"
+    );
+    assert.equal(siblingSale.branch_id, ids.branches.a2);
+    assert.equal(
+      siblingSale.status,
+      "draft",
+      "The sibling-branch write fixture must be a disposable draft sale."
+    );
+
     const { data: crossTenantUpdate, error: crossTenantUpdateError } =
       await ownerA
         .from("inventory_items")
