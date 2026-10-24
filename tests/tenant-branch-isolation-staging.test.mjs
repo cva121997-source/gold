@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const configJson = process.env.GOLD_TENANT_ISOLATION_STAGING_CONFIG;
@@ -72,6 +73,7 @@ function loadConfig() {
     ["tenants", "b"],
     ["branches", "a1"],
     ["branches", "a2"],
+    ["branches", "a3"],
     ["branches", "b1"],
     ["products", "a"],
     ["products", "b"],
@@ -91,6 +93,7 @@ function loadConfig() {
 
   assert.notEqual(config.ids.tenants.a, config.ids.tenants.b);
   assert.notEqual(config.ids.branches.a1, config.ids.branches.a2);
+  assert.notEqual(config.ids.branches.a1, config.ids.branches.a3);
   assert.notEqual(config.ids.branches.a1, config.ids.branches.b1);
   assert.notEqual(config.ids.products.a, config.ids.products.b);
   assert.notEqual(
@@ -256,7 +259,7 @@ test(
 );
 
 test(
-  "cross-tenant and cross-branch writes are rejected",
+  "cross-tenant and branch identifier tampering writes are rejected",
   {
     skip:
       !integrationEnabled ||
@@ -265,99 +268,97 @@ test(
   async () => {
     const config = loadConfig();
     const ownerA = await signIn(config, "tenantAOwner");
-    const ownerB = await signIn(config, "tenantBOwner");
     const staffA = await signIn(config, "branchAStaff");
     const ids = config.ids;
 
-    // The staging fixture's location_label is reused so a wrongly-permitted
-    // update does not change business fields. A test trigger may still update
-    // updated_at, which is why this suite must only use disposable staging data.
-    const targetItem = await expectVisible(
-      ownerB,
-      "inventory_items",
-      ids.inventoryItems.bBranch1,
-      "tenant B item",
-      "id, tenant_id, branch_id, location_label"
-    );
-    assert.equal(targetItem.tenant_id, ids.tenants.b);
-    assert.equal(targetItem.branch_id, ids.branches.b1);
-
-    const siblingSale = await expectVisible(
-      ownerA,
-      "sales",
-      ids.sales.aBranch2,
-      "sale in sibling branch A2",
-      "id, branch_id, status"
-    );
-    assert.equal(siblingSale.branch_id, ids.branches.a2);
-    assert.equal(
-      siblingSale.status,
-      "draft",
-      "The sibling-branch write fixture must be a disposable draft sale."
-    );
-
-    const { data: crossTenantUpdate, error: crossTenantUpdateError } =
+    // Branch A3 is a fixture branch with no child rows. This allows the test
+    // to check tenant_id WITH CHECK without a dependent composite FK masking it.
+    const { data: branchTampering, error: branchTamperingError } =
       await ownerA
-        .from("inventory_items")
-        .update({ location_label: targetItem.location_label })
-        .eq("id", ids.inventoryItems.bBranch1)
-        .select("id");
+        .from("branches")
+        .update({ tenant_id: ids.tenants.b })
+        .eq("id", ids.branches.a3)
+        .select("id, tenant_id");
 
-    assert.ifError(crossTenantUpdateError);
-    assert.equal(
-      crossTenantUpdate.length,
-      0,
-      "Tenant A owner must not update tenant B inventory by guessing its ID."
+    assert.ok(
+      branchTamperingError || (branchTampering ?? []).length === 0,
+      "Tenant A owner must not reassign branch A3 to tenant B."
     );
 
-    const { data: crossBranchUpdate, error: crossBranchUpdateError } =
+    const branchAfterAttempt = await expectVisible(
+      ownerA,
+      "branches",
+      ids.branches.a3,
+      "branch A3 after rejected tenant reassignment",
+      "id, tenant_id"
+    );
+    assert.equal(
+      branchAfterAttempt.tenant_id,
+      ids.tenants.a,
+      "A rejected tenant reassignment must leave branch A3 under tenant A."
+    );
+
+    const ownBranch = await expectVisible(
+      staffA,
+      "branches",
+      ids.branches.a1,
+      "assigned branch A1",
+      "id, name"
+    );
+    const { data: branchStaffUpdate, error: branchStaffUpdateError } =
       await staffA
-        .from("sales")
-        .update({ status: "draft" })
-        .eq("id", ids.sales.aBranch2)
+        .from("branches")
+        .update({ name: ownBranch.name })
+        .eq("id", ids.branches.a1)
         .select("id");
 
     assert.ok(
-      crossBranchUpdateError || crossBranchUpdate.length === 0,
-      "Branch A staff must not update a sale from sibling branch A2."
+      branchStaffUpdateError || (branchStaffUpdate ?? []).length === 0,
+      "Cashier staff must not update branch administration fields directly."
     );
 
-    const ownSaleBefore = await expectVisible(
-      staffA,
-      "sales",
-      ids.sales.aBranch1,
-      "sale in assigned branch A1",
-      "id, branch_id"
-    );
-    assert.equal(
-      ownSaleBefore.branch_id,
-      ids.branches.a1,
-      "The branch write fixture must initially belong to assigned branch A1."
-    );
+    const quotePayload = (tenantId, branchId, quoteCode) => ({
+      tenant_id: tenantId,
+      branch_id: branchId,
+      quote_code: quoteCode,
+      gold_rate_snapshot: 0,
+      weight_grams: 0,
+      gold_value: 0,
+      making_charge_mode: "fixed",
+      taxable_subtotal: 0,
+      total_amount: 0,
+    });
 
-    const { data: branchTamperingUpdate, error: branchTamperingError } =
-      await staffA
-        .from("sales")
-        .update({ branch_id: ids.branches.a2 })
-        .eq("id", ids.sales.aBranch1)
-        .select("id, branch_id");
+    const siblingQuoteAttempt = await staffA
+      .from("calculator_quotes")
+      .insert(
+        quotePayload(
+          ids.tenants.a,
+          ids.branches.a2,
+          `ISO-SIBLING-${randomUUID()}`
+        )
+      )
+      .select("id");
 
     assert.ok(
-      branchTamperingError || branchTamperingUpdate.length === 0,
-      "Branch A staff must not reassign an authorized sale to sibling branch A2."
+      siblingQuoteAttempt.error,
+      "Branch A1 staff must not insert a calculator quote into sibling branch A2."
     );
 
-    const ownSaleAfter = await expectVisible(
-      staffA,
-      "sales",
-      ids.sales.aBranch1,
-      "sale after rejected branch reassignment",
-      "id, branch_id"
-    );
-    assert.equal(
-      ownSaleAfter.branch_id,
-      ids.branches.a1,
-      "A rejected branch reassignment must leave the fixture in branch A1."
+    const crossTenantQuoteAttempt = await ownerA
+      .from("calculator_quotes")
+      .insert(
+        quotePayload(
+          ids.tenants.b,
+          ids.branches.b1,
+          `ISO-CROSS-TENANT-${randomUUID()}`
+        )
+      )
+      .select("id");
+
+    assert.ok(
+      crossTenantQuoteAttempt.error,
+      "Tenant A owner must not insert a calculator quote into tenant B."
     );
   }
 );
