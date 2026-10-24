@@ -77,6 +77,8 @@ Then run `npm test` again. Do not set that flag against production or a shared e
 
 ## Live transactional RLS test completed
 
+Repeatable SQL source: [rollback-only transactional test](../tests/sql/tenant-branch-isolation-transactional.test.sql). Run the complete script in one request/session and keep its final `ROLLBACK` intact.
+
 The connected Gold database was tested without leaving persistent fixtures. I ran a transaction containing two synthetic tenants, four branches, three synthetic Auth users, owner/cashier memberships, products, inventory items, and draft sales. The test set the PostgreSQL role to `authenticated` and changed the JWT subject between fixture identities, then exercised the actual live row-level security policies.
 
 - **28 of 28 checks passed**, including tenant-to-tenant read denial, branch-level read isolation, denied cross-tenant quote inserts, denied sibling-branch quote inserts, and rejection of a branch reassignment by the RLS `WITH CHECK` policy.
