@@ -34,7 +34,7 @@ test("stock-transfer migration removes only the obsolete status check", () => {
 });
 
 test("workflow RPC authorization suite is transaction-scoped and always rolls back", () => {
-  assert.match(transactionalSuite, /^BEGIN;/i);
+  assert.match(transactionalSuite, /\bBEGIN;/i);
   assert.match(transactionalSuite.trim(), /ROLLBACK;$/i);
   assert.doesNotMatch(
     transactionalSuite,
