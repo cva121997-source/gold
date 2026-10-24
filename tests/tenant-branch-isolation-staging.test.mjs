@@ -3,13 +3,36 @@ import assert from "node:assert/strict";
 import { createClient } from "@supabase/supabase-js";
 
 const configJson = process.env.GOLD_TENANT_ISOLATION_STAGING_CONFIG;
-const writesEnabled =
-  process.env.GOLD_TENANT_ISOLATION_ENABLE_WRITES ===
-  "I_ACKNOWLEDGE_DISPOSABLE_STAGING_DATA";
 const integrationEnabled = Boolean(configJson);
 const knownProductionProjectRefs = new Set(["oidfkbshfywexmvsrkkd"]);
+const writeConfirmation = "I_ACKNOWLEDGE_DISPOSABLE_STAGING_DATA";
+const writesEnabled = writeGateIsOpen(
+  integrationEnabled,
+  process.env.GOLD_TENANT_ISOLATION_ENABLE_WRITES
+);
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function writeGateIsOpen(configured, confirmation) {
+  return Boolean(configured) && confirmation === writeConfirmation;
+}
+
+function assertSafeStagingProject(projectRef, supabaseUrl) {
+  assert.equal(typeof projectRef, "string", "projectRef is required.");
+  assert.equal(typeof supabaseUrl, "string", "supabaseUrl is required.");
+
+  const url = new URL(supabaseUrl);
+  assert.equal(url.protocol, "https:", "Use an HTTPS staging Supabase URL.");
+  assert.equal(
+    url.hostname.split(".")[0],
+    projectRef,
+    "projectRef must match the Supabase URL host."
+  );
+  assert.ok(
+    !knownProductionProjectRefs.has(projectRef),
+    "Tenant isolation integration tests are blocked against the known production project."
+  );
+}
 
 function loadConfig() {
   assert.ok(
@@ -27,23 +50,11 @@ function loadConfig() {
     );
   }
 
-  assert.equal(typeof config.projectRef, "string", "projectRef is required.");
-  assert.equal(typeof config.supabaseUrl, "string", "supabaseUrl is required.");
   assert.equal(typeof config.anonKey, "string", "anonKey is required.");
   assert.ok(config.users, "users fixture map is required.");
   assert.ok(config.ids, "ids fixture map is required.");
 
-  const url = new URL(config.supabaseUrl);
-  assert.equal(url.protocol, "https:", "Use an HTTPS staging Supabase URL.");
-  assert.equal(
-    url.hostname.split(".")[0],
-    config.projectRef,
-    "projectRef must match the Supabase URL host."
-  );
-  assert.ok(
-    !knownProductionProjectRefs.has(config.projectRef),
-    "Tenant isolation integration tests are blocked against the known production project."
-  );
+  assertSafeStagingProject(config.projectRef, config.supabaseUrl);
 
   for (const userName of ["tenantAOwner", "tenantBOwner", "branchAStaff"]) {
     const user = config.users[userName];
@@ -127,6 +138,34 @@ async function expectHidden(client, table, id, description) {
     `${description} must be hidden by tenant/branch isolation.`
   );
 }
+
+test("staging project guard blocks the known production project", () => {
+  assert.throws(
+    () =>
+      assertSafeStagingProject(
+        "oidfkbshfywexmvsrkkd",
+        "https://oidfkbshfywexmvsrkkd.supabase.co"
+      ),
+    /blocked against the known production project/
+  );
+});
+
+test("staging project guard rejects a URL/project-ref mismatch", () => {
+  assert.throws(
+    () =>
+      assertSafeStagingProject(
+        "different-staging-ref",
+        "https://oidfkbshfywexmvsrkkd.supabase.co"
+      ),
+    /projectRef must match the Supabase URL host/
+  );
+});
+
+test("write tests require explicit disposable-staging confirmation", () => {
+  assert.equal(writeGateIsOpen(false, writeConfirmation), false);
+  assert.equal(writeGateIsOpen(true, "yes"), false);
+  assert.equal(writeGateIsOpen(true, writeConfirmation), true);
+});
 
 test(
   "tenant owners cannot read another tenant by direct ID",
