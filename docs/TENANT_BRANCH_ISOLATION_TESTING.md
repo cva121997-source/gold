@@ -18,7 +18,7 @@ Create a **disposable, non-production Supabase project** with the current Gold s
 - `tenantBOwner`: active owner membership in tenant B.
 - `branchAStaff`: a non-manager staff account assigned only to branch A1 in tenant A. Use a role that can read and update its own branch's sales (for example, `cashier`).
 
-Create two tenants, branches A1 and A2 under tenant A, branch B1 under tenant B, one product per tenant, and one inventory item and one draft sale in each of branches A1, A2, and B1. The branch A1 staff account must not have a second membership granting wider access. Use only synthetic data created for these tests. Set the sale in A1 and A2 to `draft`; write tests may touch `updated_at` if an unexpected policy allows an update.
+Create two tenants, branches A1, A2, and an empty test branch A3 under tenant A, and branch B1 under tenant B. Add one product per tenant and one inventory item and one draft sale in each of branches A1, A2, and B1. Branch A3 must have no child rows so the tenant reassignment test can reach the RLS `WITH CHECK` guard without a dependent foreign key masking it. The branch A1 staff account must not have a second membership granting wider access. Use only synthetic data created for these tests.
 
 The JSON below is the exact shape for the `GOLD_TENANT_ISOLATION_STAGING_CONFIG` environment variable. Supply the actual staging URL, anon/publishable key, account credentials, and fixture UUIDs; do not commit the config or put passwords in source control.
 
@@ -37,6 +37,7 @@ The JSON below is the exact shape for the `GOLD_TENANT_ISOLATION_STAGING_CONFIG`
     "branches": {
       "a1": "00000000-0000-4000-8000-000000000011",
       "a2": "00000000-0000-4000-8000-000000000012",
+      "a3": "00000000-0000-4000-8000-000000000013",
       "b1": "00000000-0000-4000-8000-000000000021"
     },
     "products": { "a": "00000000-0000-4000-8000-000000000031", "b": "00000000-0000-4000-8000-000000000032" },
@@ -66,7 +67,7 @@ npm test
 
 Read-only tenant and branch checks run when the config is present. The project guard verifies that the URL hostname matches `projectRef` and blocks the known production project reference.
 
-The write-denial tests are separately gated. Only in the disposable staging environment, explicitly set:
+The write-denial tests attempt to change branch A3's tenant, insert quotes into a sibling branch, and insert a quote into another tenant. They use only tables with existing authenticated-role grants and do not add privileges to the schema. The tests are separately gated. Only in the disposable staging environment, explicitly set:
 
 ```bash
 GOLD_TENANT_ISOLATION_ENABLE_WRITES=I_ACKNOWLEDGE_DISPOSABLE_STAGING_DATA
@@ -74,9 +75,18 @@ GOLD_TENANT_ISOLATION_ENABLE_WRITES=I_ACKNOWLEDGE_DISPOSABLE_STAGING_DATA
 
 Then run `npm test` again. Do not set that flag against production or a shared environment. No service-role key is used by these tests.
 
+## Live transactional RLS test completed
+
+The connected Gold database was tested without leaving persistent fixtures. I ran a transaction containing two synthetic tenants, four branches, three synthetic Auth users, owner/cashier memberships, products, inventory items, and draft sales. The test set the PostgreSQL role to `authenticated` and changed the JWT subject between fixture identities, then exercised the actual live row-level security policies.
+
+- **28 of 28 checks passed**, including tenant-to-tenant read denial, branch-level read isolation, denied cross-tenant quote inserts, denied sibling-branch quote inserts, and rejection of a branch reassignment by the RLS `WITH CHECK` policy.
+- A cashier could insert a calculator quote into the assigned branch; inserts into a sibling branch or another tenant were denied.
+- The test ended with `ROLLBACK`. A follow-up query verified zero remaining test Auth users, tenants, branches, memberships, products, inventory items, sales, quotes, and audit logs.
+- The first attempt exposed that authenticated users have no direct UPDATE/INSERT privileges for core `inventory_items`, `products`, and `sales` tables. No privileges were added; tests were revised to use granted API tables and the app's existing access design.
+
 ## Current live baseline
 
-The connected Gold project was checked without writing data:
+The connected Gold project was checked without persistent test data:
 
 - Row-level security was enabled on all 77 public base tables returned by the catalog audit.
 - All 29 authenticated UPDATE/ALL policy entries had explicit `WITH CHECK` expressions.
