@@ -79,6 +79,8 @@ Then run `npm test` again. Do not set that flag against production or a shared e
 The connected Gold project was checked without writing data:
 
 - Row-level security was enabled on all 77 public base tables returned by the catalog audit.
+- All 29 authenticated UPDATE/ALL policy entries had explicit `WITH CHECK` expressions.
+- The only three anon/public policies were SELECT-only policies for the shared `metals`, `purity_definitions`, and `subscription_plans` catalogs.
 - A read-only authenticated-role probe using a synthetic, unassigned user UUID saw zero tenants, memberships, branches, and inventory items.
 - The connected project currently has zero tenant rows, zero branches, zero active memberships, zero inventory items, and zero sales.
 
