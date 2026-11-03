@@ -10,6 +10,14 @@ The suite covers these successful state transitions:
 - **Statement reconciliation:** import a statement line that matches a confirmed Razorpay payment, verify the period becomes `matched`, re-import the identical line and verify deduplication, then import an amount-total-matching but unresolved line and verify the period remains `investigating`.
 - **Credit notes:** create and issue an invoice, create a credit-note draft from its invoice line, and issue the credit note with a positive calculated total.
 
+## Reconciliation difference-column fix
+
+Stage 7 review found that `reconciliation_records.difference_amount` is a stored generated column defined as `actual_amount - expected_amount`, while the prior private statement-import implementation attempted to assign that generated column in an `UPDATE`. PostgreSQL does not allow a generated column to be assigned directly.
+
+Migration `20261103140500_gold_reconciliation_generated_difference_fix.sql` replaces the private import implementation so it updates `actual_amount` only, lets PostgreSQL derive `difference_amount`, and returns/audits the same `actual_amount - expected_amount` sign. The public RPC name/signature and its existing permissions are preserved.
+
+**The migration is committed but has not been applied to Supabase.** The project is currently `INACTIVE`; the database has not been resumed to avoid unexpected compute usage or billing. The correction is not live-verified until the migration is applied and the SQL success-path suite passes.
+
 ## Test execution and safety
 
 Run the entire SQL file in one database session/request. The file begins with `BEGIN`, checks that its synthetic fixture identifiers are unused, creates all Auth and business fixtures inside the transaction, reports each assertion, and ends with `ROLLBACK`. Keep the final `ROLLBACK`; do not run individual sections. PostgreSQL sequences are nontransactional: creating the test credit-note draft consumes one credit-note number even though the credit-note row and audit records roll back, so a harmless number gap may remain.
