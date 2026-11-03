@@ -7,7 +7,7 @@ The live workflow suite is `tests/sql/business-workflow-success-transactional.te
 The suite covers these successful state transitions:
 
 - **Supplier payables:** create a draft bill and line, post it with generated subtotal/tax/total, record a partial payment, retry the same idempotency key, settle the remaining balance, then reverse both payments and verify that the bill returns to an unpaid `posted` state.
-- **Statement reconciliation:** import a statement line that matches a confirmed Razorpay payment, verify the period becomes `matched`, re-import the identical line and verify deduplication, then import an amount-total-matching but unresolved line and verify the period remains `investigating`.
+- **Statement reconciliation:** import a statement line that matches a confirmed Razorpay payment, verify the period becomes `matched`, re-import the identical line and verify deduplication, then import an amount-total-matching but unresolved line and verify the period remains `investigating`. A separate non-zero variance check verifies the stored and returned difference uses `actual - expected`.
 - **Credit notes:** create and issue an invoice, create a credit-note draft from its invoice line, and issue the credit note with a positive calculated total.
 
 ## Reconciliation difference-column fix

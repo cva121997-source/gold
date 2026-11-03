@@ -28,6 +28,22 @@ BEGIN
   ) OR EXISTS (
     SELECT 1 FROM public.supplier_bills
     WHERE id = 'f17f0001-0000-4000-8000-000000000041'::uuid
+  ) OR EXISTS (
+    SELECT 1 FROM public.suppliers
+    WHERE id = 'f17f0001-0000-4000-8000-000000000031'::uuid
+  ) OR EXISTS (
+    SELECT 1 FROM public.payments
+    WHERE id IN (
+      'f17f0001-0000-4000-8000-000000000051'::uuid,
+      'f17f0001-0000-4000-8000-000000000052'::uuid
+    )
+  ) OR EXISTS (
+    SELECT 1 FROM public.reconciliation_records
+    WHERE id IN (
+      'f17f0001-0000-4000-8000-000000000061'::uuid,
+      'f17f0001-0000-4000-8000-000000000062'::uuid,
+      'f17f0001-0000-4000-8000-000000000063'::uuid
+    )
   ) THEN
     RAISE EXCEPTION 'Stage 7 fixture collision; refusing to run.';
   END IF;
@@ -102,7 +118,11 @@ VALUES
   ('f17f0001-0000-4000-8000-000000000062',
    'f17f0001-0000-4000-8000-000000000001',
    'f17f0001-0000-4000-8000-000000000011',
-   'razorpay', current_date, current_date, 25, 0, 'open', 'Stage 7 unresolved-line test');
+   'razorpay', current_date, current_date, 25, 0, 'open', 'Stage 7 unresolved-line test'),
+  ('f17f0001-0000-4000-8000-000000000063',
+   'f17f0001-0000-4000-8000-000000000001',
+   'f17f0001-0000-4000-8000-000000000011',
+   'razorpay', current_date, current_date, 30, 0, 'open', 'Stage 7 non-zero difference test');
 
 SET LOCAL ROLE authenticated;
 
@@ -371,6 +391,38 @@ BEGIN
     GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
     INSERT INTO pg_temp.gold_business_workflow_results
     VALUES ('Unresolved statement line prevents false reconciliation',
+      false, SQLSTATE || ' ' || v_message);
+  END;
+
+  -- A non-zero statement variance uses the same actual-minus-expected sign
+  -- as the stored generated reconciliation_records.difference_amount column.
+  BEGIN
+    v_import := public.import_reconciliation_statement_lines(
+      v_tenant,
+      'f17f0001-0000-4000-8000-000000000063',
+      jsonb_build_array(jsonb_build_object(
+        'transaction_date', to_char(current_date, 'YYYY-MM-DD'),
+        'provider_reference', 'STAGE7-RZP-DIFFERENCE-REF',
+        'amount', 35, 'currency', 'INR', 'description', 'Stage 7 difference sign'
+      ))
+    );
+    SELECT status, actual_amount, difference_amount
+      INTO v_status, v_actual, v_difference
+    FROM public.reconciliation_records
+    WHERE tenant_id = v_tenant AND id = 'f17f0001-0000-4000-8000-000000000063';
+
+    INSERT INTO pg_temp.gold_business_workflow_results
+    VALUES ('Statement difference uses actual minus expected sign',
+      (v_import->>'difference')::numeric = 5
+        AND v_status = 'open' AND v_actual = 35 AND v_difference = 5,
+      'rpc=' || v_import::text
+        || '; status=' || coalesce(v_status, 'NULL')
+        || '; actual=' || coalesce(v_actual::text, 'NULL')
+        || '; stored_difference=' || coalesce(v_difference::text, 'NULL'));
+  EXCEPTION WHEN OTHERS THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    INSERT INTO pg_temp.gold_business_workflow_results
+    VALUES ('Statement difference uses actual minus expected sign',
       false, SQLSTATE || ' ' || v_message);
   END;
 

@@ -31,9 +31,10 @@ test("supplier bill posting, payment idempotency and reversal paths are exercise
 });
 
 test("statement reconciliation checks exact matches, duplicate imports and unresolved lines", () => {
-  assert.equal((suite.match(/public\.import_reconciliation_statement_lines/g) ?? []).length, 3);
+  assert.equal((suite.match(/public\.import_reconciliation_statement_lines/g) ?? []).length, 4);
   assert.match(suite, /Repeated statement import is idempotent/);
   assert.match(suite, /Unresolved statement line prevents false reconciliation/);
+  assert.match(suite, /Statement difference uses actual minus expected sign/);
   assert.match(suite, /v_status = 'investigating'/);
 });
 
