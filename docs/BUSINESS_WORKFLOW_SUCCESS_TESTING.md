@@ -12,7 +12,7 @@ The suite covers these successful state transitions:
 
 ## Test execution and safety
 
-Run the entire SQL file in one database session/request. The file begins with `BEGIN`, checks that its synthetic fixture identifiers are unused, creates all Auth and business fixtures inside the transaction, reports each assertion, and ends with `ROLLBACK`. Keep the final `ROLLBACK`; do not run individual sections.
+Run the entire SQL file in one database session/request. The file begins with `BEGIN`, checks that its synthetic fixture identifiers are unused, creates all Auth and business fixtures inside the transaction, reports each assertion, and ends with `ROLLBACK`. Keep the final `ROLLBACK`; do not run individual sections. PostgreSQL sequences are nontransactional: creating the test credit-note draft consumes one credit-note number even though the credit-note row and audit records roll back, so a harmless number gap may remain.
 
 The JavaScript regression file `tests/business-workflow-success-regression.test.mjs` is included in `npm test`. It verifies the test suite's rollback boundary, synthetic fixture namespace and required success-path assertions. It does not itself connect to PostgreSQL or execute the SQL.
 
