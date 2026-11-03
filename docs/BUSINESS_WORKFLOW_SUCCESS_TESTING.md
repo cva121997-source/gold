@@ -18,7 +18,7 @@ The JavaScript regression file `tests/business-workflow-success-regression.test.
 
 ## Live database verification status
 
-**Not yet executed against the connected Supabase database.** On 2026-11-03, the Supabase database tools returned `Database is possibly not accessible at the moment` and a connection timeout while listing migration history. No Stage 7 database fixture or schema change was attempted after those connection failures. Therefore this document does not claim that the SQL suite passed or that these live workflows have been validated.
+**Not yet executed against the connected Supabase database.** On 2026-11-03, the Supabase project metadata reported the project status as `INACTIVE`. Database SQL requests returned `Database is possibly not accessible at the moment`, and listing migration history timed out. No Stage 7 database fixture or schema change was attempted after these connection failures; the project was not restored or restarted. Therefore this document does not claim that the SQL suite passed or that these live workflows have been validated.
 
 When the database connection is available, execute the SQL suite as one request and record the returned assertion count/results here. Then run a separate cleanup query to confirm that the synthetic Auth user, tenant, branch, membership, supplier, bill, payments, reconciliation records/lines, invoice, credit note and audit rows are absent.
 
